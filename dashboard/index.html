@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <!-- UI SRE-GPT, rafraîchie dynamiquement -->
+    <title>SRE-GPT : Dashboard</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; background: #eef2f6; margin: 0; padding: 20px; color: #111; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; margin-bottom: 2rem; border-radius: 8px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .status-ok { color: #028a0f; font-weight: bold; }
+        .status-err { color: #d00000; font-weight: bold; }
+        .kpis { display: flex; justify-content: space-between; text-align: center; margin-top: 1.5rem; }
+        .kpi { flex: 1; border-right: 1px solid #ddd; }
+        .kpi:last-child { border: none; }
+        pre { background: #282c34; color: #abb2bf; padding: 1rem; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        .timestamp { color: #666; font-size: 0.85rem; padding-top: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🤖 Dashboard Agent SRE</h1>
+    
+    <div class="card">
+        <h2>Live Monitor (via Dynatrace)</h2>
+        <h3 id="statusLabel">Statut : Chargement...</h3>
+        
+        <div class="kpis">
+            <div class="kpi">
+                <p>Latence (ms)</p>
+                <h2 id="kpiLat">—</h2>
+            </div>
+            <div class="kpi">
+                <p>Erreurs (%)</p>
+                <h2 id="kpiErr">—</h2>
+            </div>
+            <div class="kpi">
+                <p>Disponibilité</p>
+                <h2 id="kpiAva">—</h2>
+            </div>
+        </div>
+        <div class="timestamp" id="tsLabel"></div>
+    </div>
+
+    <div class="card" id="ia-box" style="display: none;">
+        <h2>🛠 Rapport d'Incident par Gemini</h2>
+        <p><strong>Remédiation :</strong> <span id="ia-action"></span></p>
+        <pre id="ia-text"></pre>
+    </div>
+
+</div>
+
+<script>
+    async function poll() {
+        try {
+            const r = await fetch('status.json?rnd=' + new Date().getTime());
+            if (!r.ok) return;
+            const data = await r.json();
+            
+            document.getElementById('kpiLat').textContent = data.metrics.latency_ms.toFixed(1);
+            document.getElementById('kpiErr').textContent = (data.metrics.error_rate * 100).toFixed(1) + "%";
+            document.getElementById('kpiAva').textContent = (data.metrics.availability * 100).toFixed(1) + "%";
+            document.getElementById('tsLabel').textContent = "Dernière boucle à " + new Date(data.timestamp).toLocaleTimeString();
+            
+            const lb = document.getElementById('statusLabel');
+            if (data.status === 'OK') {
+                lb.innerHTML = '<span class="status-ok">✔ TOUT EST NORMAL</span>';
+            } else {
+                lb.innerHTML = '<span class="status-err">❌ INCIDENT (Rollback en cours)</span>';
+            }
+            
+            if (data.analysis && data.analysis.length > 0) {
+                document.getElementById('ia-box').style.display = 'block';
+                document.getElementById('ia-action').textContent = data.action;
+                document.getElementById('ia-text').textContent = data.analysis;
+            }
+        } catch (e) {
+            console.log("JSON not available yet.");
+        }
+    }
+    
+    poll();
+    setInterval(poll, 60000); // Demande automatique 60s
+</script>
+</body>
+</html>

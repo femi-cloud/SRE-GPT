@@ -1,0 +1,6 @@
+{
+  "name": "SRE-GPT Monitor",
+  "description": "An autonomous SRE agent dashboard monitoring Cloud Run deployments via Dynatrace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

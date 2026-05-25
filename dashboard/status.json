@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-05-25T12:00:00.000Z",
+  "metrics": {
+    "latency_ms": 150,
+    "error_rate": 0.05,
+    "availability": 1.0
+  },
+  "status": "OK"
+}
