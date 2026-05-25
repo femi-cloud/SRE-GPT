@@ -3,6 +3,7 @@ export interface MetricPoint {
   latency_ms: number;
   error_rate: number;
   availability: number;
+  status_code?: number;
 }
 
 export interface IncidentReport {
