@@ -8,6 +8,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { RecentIncidents } from './components/RecentIncidents';
 import { KpiCard } from './components/KpiCard';
 import { ChartCard } from './components/ChartCard';
+import { SimulationControls } from './components/SimulationControls';
 
 export default function App() {
   const [data, setData] = useState<MetricPoint[]>([]);
@@ -18,6 +19,21 @@ export default function App() {
   const [thresholds, setThresholds] = useState<ThresholdConfig>({ latency: 1000, errorRate: 0.1 });
   const thresholdsRef = useRef(thresholds);
   useEffect(() => { thresholdsRef.current = thresholds; }, [thresholds]);
+
+  // Simulation Controls & Fault Interceptors State
+  const [isSimPlaying, setIsSimPlaying] = useState<boolean>(true);
+  const [activeFault, setActiveFault] = useState<'none' | 'latency' | 'error' | 'both'>('none');
+  const [trafficProfile, setTrafficProfile] = useState<'normal' | 'peak' | 'quiet'>('normal');
+
+  const isSimPlayingRef = useRef(isSimPlaying);
+  const activeFaultRef = useRef(activeFault);
+  const trafficProfileRef = useRef(trafficProfile);
+  const statusRef = useRef(status);
+
+  useEffect(() => { isSimPlayingRef.current = isSimPlaying; }, [isSimPlaying]);
+  useEffect(() => { activeFaultRef.current = activeFault; }, [activeFault]);
+  useEffect(() => { trafficProfileRef.current = trafficProfile; }, [trafficProfile]);
+  useEffect(() => { statusRef.current = status; }, [status]);
 
   const [lang, setLang] = useState<'en'|'fr'>('en');
   const t = {
@@ -105,14 +121,18 @@ export default function App() {
     }
   }, [isDark]);
 
+  // Simulation parameters & historical generation
+  const consecutiveBreachesRef = useRef(0);
+  const ticksSinceStatusChangeRef = useRef(0);
+
   useEffect(() => {
     const initialData: MetricPoint[] = Array.from({ length: 20 }).map((_, i) => {
       const d = new Date();
       d.setMinutes(d.getMinutes() - (20 - i));
       return {
         time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        latency_ms: 100 + Math.random() * 50,
-        error_rate: Math.random() * 0.02,
+        latency_ms: 90 + Math.random() * 25,
+        error_rate: Math.random() * 0.012,
         availability: 1.0,
         status_code: 0,
       };
@@ -120,53 +140,131 @@ export default function App() {
     
     setData(initialData);
 
-    let isIncidentActive = false;
-    let incidentCounter = 0;
-
     const interval = setInterval(() => {
+      if (!isSimPlayingRef.current) return;
+
+      // Calculate baseline load levels
+      let baseLatency = 100;
+      let baseError = 0.005;
+      let availability = 1.0;
+
+      if (trafficProfileRef.current === 'quiet') {
+        baseLatency = 45 + Math.random() * 15;
+        baseError = Math.random() * 0.004;
+      } else if (trafficProfileRef.current === 'normal') {
+        baseLatency = 95 + Math.random() * 25;
+        baseError = Math.random() * 0.01;
+      } else if (trafficProfileRef.current === 'peak') {
+        baseLatency = 190 + Math.random() * 40;
+        baseError = 0.015 + Math.random() * 0.015;
+      }
+
+      let latency_ms = baseLatency;
+      let error_rate = baseError;
+      const currentStatus = statusRef.current;
+      const f = activeFaultRef.current;
+
+      // Apply faulty overrides or incident state conditions
+      if (f === 'latency' || (currentStatus === 'INCIDENT' && f !== 'error' && f !== 'both')) {
+        latency_ms = 1150 + Math.random() * 250;
+        error_rate = baseError + 0.012 + Math.random() * 0.012;
+        availability = 0.985;
+      } else if (f === 'error' || (currentStatus === 'INCIDENT' && f === 'error')) {
+        latency_ms = baseLatency + 60 + Math.random() * 40;
+        error_rate = 0.16 + Math.random() * 0.05;
+        availability = 0.952;
+      } else if (f === 'both' || (currentStatus === 'INCIDENT' && f === 'both')) {
+        latency_ms = 1950 + Math.random() * 300;
+        error_rate = 0.35 + Math.random() * 0.08;
+        availability = 0.68 + Math.random() * 0.07;
+      }
+
+      // If resolving in Cooldown state, show gradual healing towards normal levels
+      if (currentStatus === 'COOLDOWN') {
+        latency_ms = baseLatency * 0.85 + 25 + Math.random() * 15;
+        error_rate = baseError * 0.5 + Math.random() * 0.005;
+        availability = 0.998;
+      }
+
+      // Read active slider alert thresholds
+      const latencyThreshold = thresholdsRef.current.latency;
+      const errorThreshold = thresholdsRef.current.errorRate;
+
+      const isLatencyBreached = latency_ms > latencyThreshold;
+      const isErrorBreached = error_rate > errorThreshold;
+      const isBreaching = isLatencyBreached || isErrorBreached;
+
+      let nextStatus = currentStatus;
+
+      // Autonomous Protection Engine Transitions
+      if (currentStatus === 'OK') {
+        if (isBreaching) {
+          consecutiveBreachesRef.current += 1;
+          if (consecutiveBreachesRef.current >= 3) {
+            nextStatus = 'INCIDENT';
+            consecutiveBreachesRef.current = 0;
+            ticksSinceStatusChangeRef.current = 0;
+
+            // Formulate context-aware AI post mortem report
+            let act = "Container Auto-Scaling Triggered (GCP Cloud Run)";
+            let desc = `Anomaly Alert: Performance Degradation Detected.\n\n- Sub-nominal execution profile breached active protection policies.\n- Latency observed: ${Math.round(latency_ms)}ms (threshold: ${latencyThreshold}ms).\n- Error rate observed: ${(error_rate*100).toFixed(1)}% (threshold: ${(errorThreshold*100).toFixed(1)}%).\n\nRoot Cause: Resource starvation detected on primary cluster region under current traffic pattern.\nAction: AI Engine provisioned supplementary capacity and routed latency warming vectors.`;
+
+            if (isLatencyBreached && !isErrorBreached) {
+              act = "Horizontal Replication Scale Up (+4 Pods)";
+              desc = `Anomaly Alert: Latency Threshold Breached.\n\n- Observed Latency: ${Math.round(latency_ms)}ms (alert ceiling: ${latencyThreshold}ms).\n- Active Database Socket allocation high.\n\nRoot Cause: Slow transactional locks query congestion on read-heavy DB tables.\nAction: Spanned additional active container instances to balance read replica allocation and flushed stale sockets.`;
+            } else if (isErrorBreached && !isLatencyBreached) {
+              act = "Automated Canary Rollback (Rev Stable v2.10.4)";
+              desc = `Anomaly Alert: Error Spike Breached Safety Margins.\n\n- Simulated Error Rate: ${(error_rate*100).toFixed(1)}% (alert ceiling: ${(errorThreshold*100).toFixed(0)}%).\n\nRoot Cause: Missing runtime environment Variable causing downstream API authentication failure.\nAction: Autonomous engine successfully shifted 100% of user traffic backend connections to the previous fully-validated revision.`;
+            } else if (f === 'both' || (isLatencyBreached && isErrorBreached)) {
+              act = "Gateway Outage Protection Redirect (Cloud DNS Failover)";
+              desc = `Anomaly Alert: Total Service Interruption Detected.\n\n- Critical Breach: Combined Latency (${Math.round(latency_ms)}ms) & Error Rate (${(error_rate*100).toFixed(1)}%) reached emergency ceiling.\n- Service availability dropped below SLA: ${(availability * 100).toFixed(1)}%.\n\nRoot Cause: Total backend microservice disconnect. Cascade connection failure.\nAction: Autonomous Agent engaged emergency DNS Failover and routed ingress requests to secondary multi-region standby environment.`;
+            }
+
+            const newInc: IncidentReport = {
+              id: Date.now().toString(),
+              timestamp: new Date().toISOString(),
+              action: act,
+              analysis: desc
+            };
+
+            setIncident(newInc);
+            addIncident(newInc);
+          }
+        } else {
+          consecutiveBreachesRef.current = 0;
+        }
+      } else if (currentStatus === 'INCIDENT') {
+        ticksSinceStatusChangeRef.current += 1;
+        if (ticksSinceStatusChangeRef.current >= 4) {
+          nextStatus = 'COOLDOWN';
+          ticksSinceStatusChangeRef.current = 0;
+        }
+      } else if (currentStatus === 'COOLDOWN') {
+        ticksSinceStatusChangeRef.current += 1;
+        if (ticksSinceStatusChangeRef.current >= 4) {
+          nextStatus = 'OK';
+          ticksSinceStatusChangeRef.current = 0;
+          setIncident(null);
+          setActiveFault('none');
+        }
+      }
+
+      if (nextStatus !== currentStatus) {
+        setStatus(nextStatus);
+      }
+
+      const statusCode = nextStatus === 'INCIDENT' ? 2 : nextStatus === 'COOLDOWN' ? 1 : 0;
+
       setData(prev => {
         const newData = [...prev.slice(1)];
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        if (incidentCounter === 10) {
-           isIncidentActive = true;
-           setStatus('INCIDENT');
-        }
-
-        if (incidentCounter === 15) {
-           isIncidentActive = false;
-           setStatus('COOLDOWN');
-           const newInc: IncidentReport = {
-             id: Date.now().toString(),
-             timestamp: new Date().toISOString(),
-             action: "Rollback (v2 API GCP)",
-             analysis: `Anomaly detected:\n\n- Latency exceeded ${thresholdsRef.current.latency}ms threshold.\n- Error rate peaked.\n\nRoot Cause: Recent deployment degraded performance to downstream database.\nAction: Automatically routed 100% of traffic to the previous stable revision.`
-           };
-           setIncident(newInc);
-           addIncident(newInc);
-        }
-
-        if (incidentCounter === 25) {
-            setStatus('OK');
-            setIncident(null);
-            incidentCounter = 0;
-        }
-
-        incidentCounter++;
-
-        let statusCode = 0;
-        if (isIncidentActive || incidentCounter === 10) {
-           statusCode = 2;
-        } else if (incidentCounter >= 15 && incidentCounter < 25) {
-           statusCode = 1;
-        }
-
+        
         return [...newData, {
           time: timeStr,
-          latency_ms: isIncidentActive ? 1200 + Math.random() * 300 : 100 + Math.random() * 50,
-          error_rate: isIncidentActive ? 0.10 + Math.random() * 0.05 : Math.random() * 0.02,
-          availability: isIncidentActive ? 0.92 : 1.0,
+          latency_ms,
+          error_rate,
+          availability,
           status_code: statusCode,
         }];
       });
@@ -508,6 +606,20 @@ export default function App() {
           </div>
 
           <div className="space-y-6">
+            <SimulationControls 
+              isSimPlaying={isSimPlaying}
+              onToggleSim={() => setIsSimPlaying(!isSimPlaying)}
+              activeFault={activeFault}
+              onInjectFault={(fault) => {
+                setActiveFault(fault);
+                if (fault === 'none' && status === 'INCIDENT') {
+                  setStatus('COOLDOWN');
+                }
+              }}
+              trafficProfile={trafficProfile}
+              onChangeProfile={setTrafficProfile}
+              lang={lang}
+            />
             <SettingsPanel thresholds={thresholds} onThresholdChange={setThresholds} />
             <RecentIncidents incidents={pastIncidents} />
           </div>
