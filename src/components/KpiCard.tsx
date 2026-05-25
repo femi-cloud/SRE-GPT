@@ -40,19 +40,19 @@ export function KpiCard({
   const hasChanged = prevNum !== undefined && Math.abs(diff) > 0.001;
 
   return (
-    <div className={`p-6 rounded-2xl border backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-all duration-300 hover:scale-[1.01] ${
+    <div className={`p-6 rounded-2xl border transition-all duration-300 hover:scale-[1.01] ${
       isDanger 
-        ? 'bg-red-500/10 dark:bg-red-500/15 border-red-500/30 dark:border-red-500/40' 
-        : 'bg-white/5 dark:bg-gray-800/20 border-white/10 dark:border-gray-700/50'
+        ? 'bg-red-500/10 border-red-500/30 shadow-[0_4px_30px_rgba(239,68,68,0.1)]' 
+        : 'glass-card border-slate-200/50 dark:border-white/10'
     }`}>
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2.5 rounded-xl transition-colors ${isDanger ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+        <div className={`p-2.5 rounded-xl transition-colors ${isDanger ? 'bg-red-500/20 text-red-400' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400'}`}>
           {icon}
         </div>
-        <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{title}</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h3>
       </div>
       <div className="flex items-baseline justify-between gap-2">
-        <div className={`text-4xl font-bold tracking-tight transition-colors ${isDanger ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+        <div className={`text-4xl font-bold tracking-tight transition-colors ${isDanger ? 'text-red-600 dark:text-red-400 text-glow' : 'text-slate-900 dark:text-white'}`}>
           {value}
         </div>
         

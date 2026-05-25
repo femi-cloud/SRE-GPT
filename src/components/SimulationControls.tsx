@@ -57,13 +57,13 @@ export function SimulationControls({
   }[lang];
 
   return (
-    <div className="bg-white/5 dark:bg-gray-800/20 backdrop-blur-xl p-6 rounded-2xl border border-white/10 dark:border-gray-700/50 shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-colors">
+    <div className="glass-card p-6 border border-slate-200/50 dark:border-white/10 transition-colors">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+          <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300">
             <Activity size={20} />
           </div>
-          <h2 className="text-[17px] font-bold text-gray-800 dark:text-gray-100">{loc.title}</h2>
+          <h2 className="text-[17px] font-bold text-slate-900 dark:text-white">{loc.title}</h2>
         </div>
         
         {/* Play/Pause Button */}
@@ -71,18 +71,18 @@ export function SimulationControls({
           onClick={onToggleSim}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase border transition-all cursor-pointer ${
             isSimPlaying 
-              ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30' 
-              : 'bg-amber-500/10 text-amber-500 border-amber-500/30 animate-pulse'
+              ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border-indigo-500/35 dark:border-indigo-500/45' 
+              : 'bg-amber-500/20 text-amber-650 dark:text-amber-400 border-amber-500/35 dark:border-amber-500/45 animate-pulse'
           }`}
         >
           {isSimPlaying ? (
             <>
-              <Pause size={12} className="fill-indigo-500" />
+              <Pause size={12} className="fill-indigo-500 dark:fill-indigo-400" />
               <span>{loc.playing}</span>
             </>
           ) : (
             <>
-              <Play size={12} className="fill-amber-500" />
+              <Play size={12} className="fill-amber-600 dark:fill-amber-400" />
               <span>{loc.paused}</span>
             </>
           )}
@@ -92,7 +92,7 @@ export function SimulationControls({
       <div className="space-y-6">
         {/* Traffic Profile Selector */}
         <div>
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
             {loc.traffic}
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -106,8 +106,8 @@ export function SimulationControls({
                   disabled={!isSimPlaying}
                   className={`py-2 px-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isActive
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.03]'
-                      : 'bg-white/5 hover:bg-white/10 text-gray-700 dark:text-gray-300 border-white/5'
+                      ? 'bg-indigo-600 text-white border-indigo-600 dark:bg-indigo-600/90 dark:border-indigo-500/80 shadow-md scale-[1.03]'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/5'
                   }`}
                 >
                   {labels[p]}
@@ -119,7 +119,7 @@ export function SimulationControls({
 
         {/* Fault Injection Options */}
         <div>
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
             {loc.chaos}
           </label>
           <div className="grid grid-cols-1 gap-2">
@@ -128,15 +128,15 @@ export function SimulationControls({
               disabled={!isSimPlaying}
               className={`flex items-center justify-between py-2 px-4 rounded-xl border text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                 activeFault === 'latency'
-                  ? 'bg-amber-500/15 border-amber-500 text-amber-600 dark:text-amber-400 shadow-sm'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-700 dark:text-gray-300 border-white/5'
+                  ? 'bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)] shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/5'
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${activeFault === 'latency' ? 'bg-amber-500 animate-ping' : 'bg-gray-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${activeFault === 'latency' ? 'bg-amber-500 animate-ping' : 'bg-slate-400 dark:bg-gray-600'}`} />
                 <span>{loc.injectLatency}</span>
               </div>
-              <Zap size={15} className={activeFault === 'latency' ? 'text-amber-500' : 'text-gray-400'} />
+              <Zap size={15} className={activeFault === 'latency' ? 'text-amber-500 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'} />
             </button>
 
             <button
@@ -144,15 +144,15 @@ export function SimulationControls({
               disabled={!isSimPlaying}
               className={`flex items-center justify-between py-2 px-4 rounded-xl border text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                 activeFault === 'error'
-                  ? 'bg-red-500/15 border-red-500 text-red-600 dark:text-red-400 shadow-sm'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-700 dark:text-gray-300 border-white/5'
+                  ? 'bg-red-500/20 border-red-500 text-red-600 dark:text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.15)] shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/5'
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${activeFault === 'error' ? 'bg-red-500 animate-ping' : 'bg-gray-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${activeFault === 'error' ? 'bg-red-500 animate-ping' : 'bg-slate-400 dark:bg-gray-600'}`} />
                 <span>{loc.injectError}</span>
               </div>
-              <AlertOctagon size={15} className={activeFault === 'error' ? 'text-red-500' : 'text-gray-400'} />
+              <AlertOctagon size={15} className={activeFault === 'error' ? 'text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'} />
             </button>
 
             <button
@@ -160,22 +160,22 @@ export function SimulationControls({
               disabled={!isSimPlaying}
               className={`flex items-center justify-between py-2 px-4 rounded-xl border text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                 activeFault === 'both'
-                  ? 'bg-purple-500/15 border-purple-500 text-purple-600 dark:text-purple-400 shadow-sm'
-                  : 'bg-white/5 hover:bg-white/10 text-gray-700 dark:text-gray-300 border-white/5'
+                  ? 'bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.15)] shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/5'
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${activeFault === 'both' ? 'bg-purple-500 animate-pulse' : 'bg-gray-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${activeFault === 'both' ? 'bg-purple-500 animate-pulse' : 'bg-slate-400 dark:bg-gray-600'}`} />
                 <span>{loc.injectBoth}</span>
               </div>
-              <ShieldAlert size={15} className={activeFault === 'both' ? 'text-purple-500' : 'text-gray-400'} />
+              <ShieldAlert size={15} className={activeFault === 'both' ? 'text-purple-500 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400'} />
             </button>
 
             {/* Clear Fault / Recover Button */}
             <button
               onClick={() => onInjectFault('none')}
               disabled={!isSimPlaying || activeFault === 'none'}
-              className="mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 shadow-md transition-all cursor-pointer disabled:bg-gray-100 disabled:text-gray-450 dark:disabled:bg-white/5 dark:disabled:text-gray-505 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all cursor-pointer disabled:bg-slate-100 dark:disabled:bg-white/5 disabled:text-slate-400 dark:disabled:text-gray-550 disabled:opacity-40"
             >
               <RefreshCw size={15} className={activeFault !== 'none' ? 'animate-spin' : ''} />
               <span>{loc.clearAll}</span>
