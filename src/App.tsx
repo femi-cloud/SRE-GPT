@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Activity, AlertTriangle, CheckCircle, Server, Info, ShieldAlert, Cpu, Network, Moon, Sun, Download } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, Server, Info, ShieldAlert, Cpu, Network, Moon, Sun, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
 import { MetricPoint, IncidentReport, ThresholdConfig } from './types';
 import { SettingsPanel } from './components/SettingsPanel';
 import { RecentIncidents } from './components/RecentIncidents';
@@ -197,6 +198,84 @@ export default function App() {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+  };
+
+  const downloadCurrentReportPDF = () => {
+    if (!incident) return;
+    const doc = new jsPDF();
+    
+    // Header band background (Dark Slate color)
+    doc.setFillColor(31, 41, 55);
+    doc.rect(0, 0, 210, 40, "F");
+    
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text("SRE-GPT Monitor - Incident Report", 14, 25);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(156, 163, 175);
+    doc.text("Autonomous Cloud Run Reliability Agent Core Post-Mortem", 14, 33);
+
+    // Section header
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(31, 41, 55);
+    doc.text("INCIDENT SUMMARY METADATA", 14, 54);
+    
+    // Decorative horizontal separator line
+    doc.setDrawColor(229, 231, 235);
+    doc.line(14, 57, 196, 57);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(75, 85, 99);
+    doc.text(`Incident ID: ${incident.id}`, 14, 65);
+    doc.text(`Incident Date (UTC): ${new Date(incident.timestamp).toUTCString()}`, 14, 71);
+    doc.text(`System Status: Remediation Successfully Completed / Cooldown Active`, 14, 77);
+    doc.text(`SLA Impact Level: High (Service Availability Sub-Nominal)`, 14, 83);
+
+    // Remediation box
+    doc.setFillColor(239, 246, 255); // soft indigo backfill
+    doc.rect(14, 90, 182, 22, "F");
+    doc.setDrawColor(191, 219, 254);
+    doc.rect(14, 90, 182, 22, "S");
+    
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(29, 78, 216);
+    doc.text("EXECUTED MITIGATION DISPATCHED:", 18, 97);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(17, 24, 39);
+    doc.text(incident.action, 18, 105);
+
+    // Detailed Root Cause Analysis text section
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(31, 41, 55);
+    doc.text("ROOT CAUSE & DETAILED CHRONOLOGY ANALYSIS", 14, 126);
+    
+    doc.setDrawColor(229, 231, 235);
+    doc.line(14, 129, 196, 129);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    
+    const analysisWrapped = doc.splitTextToSize(incident.analysis, 182);
+    doc.text(analysisWrapped, 14, 137);
+
+    // Page decoration and automation disclaimer footer
+    doc.setFont("Helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(156, 163, 175);
+    doc.text("CONFIDENTIAL - SRE AUTOMATION ENGINE REPORT. FOR INTERNAL USE ONLY.", 14, 282);
+    doc.text(`Page 1 of 1 • Generated at ${new Date().toLocaleString()}`, 142, 282);
+    
+    doc.save(`incident_report_postmortem_${incident.id}.pdf`);
   };
 
   return (
@@ -401,12 +480,22 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    <button 
-                      onClick={downloadCurrentReport}
-                      className="flex items-center gap-2 whitespace-nowrap self-start sm:self-auto px-4 py-2 text-sm font-bold bg-white/5 dark:bg-gray-800/10 text-indigo-700 dark:text-indigo-400 border border-white/10 dark:border-gray-700/30 rounded-lg shadow-sm hover:bg-indigo-50/15 dark:hover:bg-indigo-500/10 transition-colors"
-                    >
-                      <Download size={16} /> {t.export}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                      <button 
+                        onClick={downloadCurrentReport}
+                        className="flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-bold bg-white/5 dark:bg-gray-800/10 text-indigo-700 dark:text-indigo-400 border border-white/10 dark:border-gray-700/30 rounded-lg shadow-sm hover:bg-indigo-50/15 dark:hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                        title="Download JSON Report"
+                      >
+                        <Download size={16} /> {t.export}
+                      </button>
+                      <button 
+                        onClick={downloadCurrentReportPDF}
+                        className="flex items-center gap-2 whitespace-nowrap px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg shadow-sm transition-colors cursor-pointer"
+                        title="Download PDF Document"
+                      >
+                        <FileText size={16} /> {lang === 'en' ? 'Download PDF' : 'Télécharger PDF'}
+                      </button>
+                    </div>
                   </div>
                   <div className="p-6 px-8 bg-transparent">
                     <div className="prose prose-indigo dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 font-medium whitespace-pre-line text-[15px] leading-relaxed">
@@ -423,6 +512,22 @@ export default function App() {
             <RecentIncidents incidents={pastIncidents} />
           </div>
         </div>
+
+        {/* Footer Helper Hints */}
+        <footer className="mt-12 pt-6 border-t border-gray-200/20 dark:border-gray-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+          <div>
+            System Status: <span className="text-emerald-500 font-semibold">• ONLINE</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <span>Keyboard Shortcuts:</span>
+            <span className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded border border-white/10 dark:border-gray-800 font-mono shadow-sm">
+              <kbd className="font-sans font-bold text-indigo-500 dark:text-indigo-400">D</kbd> {lang === 'en' ? 'Toggle Theme' : 'Mode Sombre'}
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded border border-white/10 dark:border-gray-800 font-mono shadow-sm">
+              <kbd className="font-sans font-bold text-indigo-500 dark:text-indigo-400">S</kbd> {lang === 'en' ? 'Search Incidents' : 'Rechercher Incidents'}
+            </span>
+          </div>
+        </footer>
 
       </div>
     </div>
