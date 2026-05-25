@@ -27,7 +27,7 @@ export function RecentIncidents({ incidents }: RecentIncidentsProps) {
   if (incidents.length === 0 && !searchTerm) return null;
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors mt-6 flex flex-col max-h-[600px]">
+    <div className="bg-white/5 dark:bg-gray-800/20 backdrop-blur-xl p-6 rounded-2xl border border-white/10 dark:border-gray-700/50 shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-colors mt-6 flex flex-col max-h-[600px]">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
           <History size={20} />
@@ -54,7 +54,7 @@ export function RecentIncidents({ incidents }: RecentIncidentsProps) {
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No matching incidents.</p>
         ) : (
           filteredIncidents.map(inc => (
-          <div key={inc.id} className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 shadow-sm">
+          <div key={inc.id} className="p-4 rounded-xl border border-white/5 dark:border-gray-750/30 bg-white/5 dark:bg-gray-900/40">
             <div className="flex justify-between items-start mb-3 gap-2">
               <span className="text-[11px] font-bold px-2 py-1 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 uppercase tracking-wider shrink-0">
                 {new Date(inc.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

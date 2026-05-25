@@ -199,10 +199,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans p-4 md:p-8 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans p-4 md:p-8 transition-colors duration-300 relative overflow-hidden">
+      {/* Subtle Radial Gradient Overlays */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-10 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 dark:bg-cyan-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 left-2/3 w-[450px] h-[450px] bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-[110px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto space-y-6 relative z-10">
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 dark:bg-gray-800/20 backdrop-blur-xl p-6 rounded-2xl border border-white/10 dark:border-gray-700/50 shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-colors">
           <div className="flex items-center gap-4">
             <div className="bg-blue-600 dark:bg-blue-500 p-3 rounded-xl text-white shadow-md">
               <Activity size={28} />
@@ -373,17 +378,17 @@ export default function App() {
                   initial={{ opacity: 0, height: 0, scale: 0.98 }} 
                   animate={{ opacity: 1, height: 'auto', scale: 1 }} 
                   exit={{ opacity: 0, height: 0, scale: 0.98 }}
-                  className="bg-white dark:bg-gray-800 border-[1.5px] border-indigo-200 dark:border-indigo-500/30 rounded-2xl shadow-sm overflow-hidden transform-gpu"
+                  className="bg-white/5 dark:bg-gray-800/20 backdrop-blur-xl border border-white/10 dark:border-gray-700/50 shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden transform-gpu"
                 >
-                  <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 px-6 border-b border-indigo-100 dark:border-indigo-500/20 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="bg-indigo-500/5 dark:bg-indigo-950/10 p-5 px-6 border-b border-white/10 dark:border-gray-700/30 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
-                      <div className="bg-white dark:bg-gray-800 p-2.5 shadow-sm rounded-full text-indigo-600 dark:text-indigo-400 mt-1 shrink-0">
+                      <div className="bg-white/5 dark:bg-gray-800/40 p-2.5 shadow-sm rounded-full text-indigo-600 dark:text-indigo-400 mt-1 shrink-0">
                         <Info size={22} />
                       </div>
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-indigo-950 dark:text-indigo-100 mb-1.5">{t.aiReport}</h3>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 font-medium">
-                          <span className="bg-indigo-100 dark:bg-indigo-500/30 px-2.5 py-1 rounded-md text-indigo-700 dark:text-indigo-300">{t.action}: {incident.action}</span>
+                          <span className="bg-indigo-100/10 dark:bg-indigo-500/30 px-2.5 py-1 rounded-md text-indigo-700 dark:text-indigo-300">{t.action}: {incident.action}</span>
                           <span className="hidden sm:inline opacity-60">•</span>
                           <span className="opacity-80">{new Date(incident.timestamp).toLocaleTimeString()}</span>
                         </div>
@@ -391,12 +396,12 @@ export default function App() {
                     </div>
                     <button 
                       onClick={downloadCurrentReport}
-                      className="flex items-center gap-2 whitespace-nowrap self-start sm:self-auto px-4 py-2 text-sm font-bold bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-lg shadow-sm hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                      className="flex items-center gap-2 whitespace-nowrap self-start sm:self-auto px-4 py-2 text-sm font-bold bg-white/5 dark:bg-gray-800/10 text-indigo-700 dark:text-indigo-400 border border-white/10 dark:border-gray-700/30 rounded-lg shadow-sm hover:bg-indigo-50/15 dark:hover:bg-indigo-500/10 transition-colors"
                     >
                       <Download size={16} /> {t.export}
                     </button>
                   </div>
-                  <div className="p-6 px-8 bg-white dark:bg-gray-800">
+                  <div className="p-6 px-8 bg-transparent">
                     <div className="prose prose-indigo dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 font-medium whitespace-pre-line text-[15px] leading-relaxed">
                       {incident.analysis}
                     </div>
