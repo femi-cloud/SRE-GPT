@@ -1,13 +1,261 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SRE Dashboard — Glass UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0B1220;
+      --glass-bg: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.08);
+      --accent-start:#06B6D4; /* cyan */
+      --accent-end:#7C3AED; /* purple */
+      --green:#16A34A;
+      --red:#EF4444;
+      --ok-blue:#3B82F6;
+      --card-radius:16px;
+      --transition:0.4s ease;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,system-ui,Arial;color:#E6EEF6;transition:background 0.6s ease}
+    .app{padding:20px;max-width:1200px;margin:20px auto;}
+    /* navbar */
+    .navbar{position:fixed;left:0;right:0;top:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(255,255,255,0.02);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,0.04);z-index:30}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:700}
+    .brand .logo{width:36px;height:36;border-radius:9px;background:linear-gradient(135deg,var(--accent-start),var(--accent-end));box-shadow:0 6px 18px rgba(124,58,237,0.12)}
+    .controls{display:flex;align-items:center;gap:12px}
+    .btn{background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all var(--transition)}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:linear-gradient(90deg,var(--accent-start),var(--accent-end));color:#061018;border:none}
+    .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* layout */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:84px}
+    .card{background:var(--glass-bg);backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:var(--card-radius);padding:16px;transition:all var(--transition);position:relative;overflow:hidden}
+    .card::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.02));pointer-events:none}
+    .card .title{font-size:13px;color:rgba(230,238,246,0.8);margin-bottom:8px}
+    .kpi{display:flex;align-items:baseline;gap:12px}
+    .kpi .value{font-size:28px;font-weight:700;transition:color 0.4s ease}
+    .kpi .small{font-size:12px;color:rgba(230,238,246,0.6)}
+    .metric-incident{box-shadow:0 0 24px rgba(239,68,68,0.25);border-color:rgba(239,68,68,0.25)}
+    .glow-cyan{box-shadow:0 6px 24px rgba(6,182,212,0.08);border-color:rgba(6,182,212,0.12)}
+    /* timeline */
+    .timeline{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+    .t-item{padding:10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);transform:translateX(20px);opacity:0;animation:slideIn 0.45s forwards}
+    @keyframes slideIn{to{transform:none;opacity:1}}
+    .t-item.ok{border-left:4px solid var(--ok-blue)}
+    .t-item.resolved{border-left:4px solid var(--green)}
+    .t-item.incident{border-left:4px solid var(--red)}
+    .badge{font-size:11px;padding:4px 8px;border-radius:999px}
+    /* heartbeat */
+    .heartbeat{display:flex;align-items:center;gap:8px}
+    .pulse{width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(16,185,129,0.35);animation:pulse 1.8s infinite}
+    .pulse.off{background:var(--red);box-shadow:none;animation:none}
+    @keyframes pulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:0.45}100%{transform:scale(1);opacity:1}}
+    /* terminal */
+    .terminal{font-family:'JetBrains Mono',monospace;background:#040404;color:#9afc9a;padding:14px;border-radius:12px;max-height:260px;overflow:auto;border:1px solid rgba(255,255,255,0.04)}
+    .term-line{white-space:pre-wrap;font-size:13px}
+    .term-ok{color:#6ee26e}
+    .term-err{color:#ff7b7b}
+    .term-warn{color:#ffd86b}
+    /* cooldown */
+    .cooldown{height:10px;background:rgba(255,255,255,0.04);border-radius:6px;overflow:hidden}
+    .cooldown > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));width:0%}
+    /* sparkline canvas */
+    canvas.spark{width:120px;height:32px}
+    /* responsive */
+    @media (max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}.app{padding:12px}}
+    /* incident full mode */
+    .incident-mode{background:#1a0a0a !important}
+    .incident-mode .card{border-color:rgba(239,68,68,0.28);box-shadow:0 6px 28px rgba(239,68,68,0.06)}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="brand"><div class="logo"></div><div>SRE Dashboard</div></div>
+    <div class="controls">
+      <div class="heartbeat" title="Agent status"><div id="agent-pulse" class="pulse"></div><div id="agent-label">Agent Live</div></div>
+      <button id="simulateBtn" class="btn"><span id="sim-text">Simulate Incident</span><span id="sim-spinner" style="display:none" class="spinner"></span></button>
+    </div>
+  </div>
+  <div class="app">
+    <div class="grid">
+      <div class="card" id="latencyCard">
+        <div class="title">Latency</div>
+        <div class="kpi"><div class="value" id="latencyVal">—</div><div class="small">avg</div></div>
+        <canvas id="latencySpark" class="spark"></canvas>
+      </div>
+      <div class="card" id="errorCard">
+        <div class="title">Error Rate</div>
+        <div class="kpi"><div class="value" id="errorVal">—%</div><div class="small">last</div></div>
+        <canvas id="errorSpark" class="spark"></canvas>
+      </div>
+      <div class="card" id="throughputCard">
+        <div class="title">Throughput</div>
+        <div class="kpi"><div class="value" id="tpVal">—</div><div class="small">rps</div></div>
+        <canvas id="tpSpark" class="spark"></canvas>
+      </div>
+      <div class="card" style="grid-column:span 2">
+        <div class="title">Incident Timeline</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+      <div class="card">
+        <div class="title">Rollbacks today</div>
+        <div class="kpi"><div class="value" id="rollbackCount">0</div></div>
+        <div id="cooldownArea" style="margin-top:10px;display:none">
+          <div class="small" id="cooldownLabel">Post-remediation cooldown — 5m 0s remaining</div>
+          <div class="cooldown"><i id="cooldownBar"></i></div>
+        </div>
+      </div>
+    </div>
 
+    <div style="margin-top:18px" class="card">
+      <div class="title">Agent Action Log</div>
+      <div id="terminal" class="terminal"></div>
+    </div>
+  </div>
+
+  <div id="toast" style="position:fixed;right:20px;bottom:20px;padding:12px 16px;border-radius:8px;background:rgba(0,0,0,0.6);color:#fff;display:none;z-index:60"></div>
+
+  <script>
+    // Simple dashboard script implementing requested features
+    const POLL_INTERVAL = 5000;
+    const HEARTBEAT_THRESHOLD = 90000; // 90s
+    const COOLDOWN_MS = 5*60*1000; // 5 minutes
+
+    const state = { lastStatusTs:0, status:'OK', metrics:{latency:0,errorRate:0,throughput:0} };
+
+    // storage helpers
+    const store = {
+      getTimeline(){return JSON.parse(localStorage.getItem('timeline')||'[]')},
+      pushTimeline(entry){let a=this.getTimeline();a.unshift(entry);a=a.slice(0,10);localStorage.setItem('timeline',JSON.stringify(a));return a},
+      getRollbacks(){return parseInt(localStorage.getItem('rollbacks')||'0',10)},
+      setRollbacks(n){localStorage.setItem('rollbacks',String(n))},
+      getActions(){return JSON.parse(localStorage.getItem('actions')||'[]')},
+      pushAction(a){let arr=this.getActions();arr.push(a);arr=arr.slice(-20);localStorage.setItem('actions',JSON.stringify(arr));return arr}
+    };
+
+    // UI refs
+    const latencyVal=document.getElementById('latencyVal');
+    const errorVal=document.getElementById('errorVal');
+    const tpVal=document.getElementById('tpVal');
+    const simulateBtn=document.getElementById('simulateBtn');
+    const simSpinner=document.getElementById('sim-spinner');
+    const simText=document.getElementById('sim-text');
+    const timelineEl=document.getElementById('timeline');
+    const agentPulse=document.getElementById('agent-pulse');
+    const agentLabel=document.getElementById('agent-label');
+    const rollbackCountEl=document.getElementById('rollbackCount');
+    const cooldownArea=document.getElementById('cooldownArea');
+    const cooldownLabel=document.getElementById('cooldownLabel');
+    const cooldownBar=document.getElementById('cooldownBar');
+    const terminalEl=document.getElementById('terminal');
+    const toastEl=document.getElementById('toast');
+
+    // canvas sparklines setup
+    const latencySpark = document.getElementById('latencySpark');
+    const errorSpark = document.getElementById('errorSpark');
+    const tpSpark = document.getElementById('tpSpark');
+    [latencySpark,errorSpark,tpSpark].forEach(c=>{c.width=240;c.height=64});
+
+    function drawSpark(canvas, data, color){
+      const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(!data||data.length===0) return;
+      const w=canvas.width, h=canvas.height, len=data.length;const max=Math.max(...data), min=Math.min(...data);
+      ctx.beginPath();for(let i=0;i<len;i++){const x=(i/(len-1))*w;const v = (data[i]-min)/(max-min||1);const y=h - v*h; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y)}
+      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+    }
+
+    // animate number transitions
+    function animateNumber(el, from, to, formatFn){
+      const start=performance.now(); const dur=600; function step(now){const t=Math.min(1,(now-start)/dur); const v=from+(to-from)*t; el.textContent = formatFn?formatFn(Math.round(v)):Math.round(v); if(t<1) requestAnimationFrame(step);} requestAnimationFrame(step);
+    }
+
+    // simulate incident button
+    simulateBtn.addEventListener('click',async ()=>{
+      simSpinner.style.display='inline-block'; simText.style.opacity=0.6;
+      try{
+        const res = await fetch('http://localhost:8080/simulate',{method:'GET'});
+        showToast('Incident triggered!'); pushActionLog('Triggered simulate endpoint', 'ok');
+      }catch(e){showToast('Failed to trigger simulate', true); pushActionLog('Failed to trigger simulate', 'err')}
+      finally{simSpinner.style.display='none'; simText.style.opacity=1}
+    });
+
+    function showToast(msg, isErr){toastEl.textContent=msg; toastEl.style.display='block'; toastEl.style.background=isErr?'rgba(128,20,20,0.9)':'rgba(6,182,212,0.95)'; setTimeout(()=>toastEl.style.display='none',3000)}
+
+    // timeline rendering
+    function renderTimeline(){timelineEl.innerHTML=''; const items=store.getTimeline(); items.forEach(it=>{const div=document.createElement('div');div.className='t-item '+(it.type==='INCIDENT'?'incident':(it.type==='RESOLVED'?'resolved':'ok'));div.innerHTML=`<div style="display:flex;justify-content:space-between"><div><strong>${it.type}</strong> <span style="opacity:0.7;font-size:12px;margin-left:8px">${new Date(it.ts).toLocaleTimeString()}</span></div><div style="font-size:13px">${it.latency}ms • ${it.errorRate}%</div></div>`;timelineEl.appendChild(div)});
+    }
+
+    // agent action log
+    function renderTerminal(){terminalEl.innerHTML=''; const lines=store.getActions(); lines.forEach(l=>{const el=document.createElement('div');el.className='term-line'; el.classList.add(l.level==='ok'?'term-ok':(l.level==='err'?'term-err':'term-warn')); el.textContent=`[${new Date(l.ts).toLocaleTimeString()}] ${l.text}`; terminalEl.appendChild(el)}); terminalEl.scrollTop = terminalEl.scrollHeight; }
+
+    function pushActionLog(text, level='ok'){store.pushAction({ts:Date.now(),text,level}); renderTerminal();}
+
+    // rollbacks counter and reset at midnight
+    function loadRollbacks(){const todayKey='rollbacks_date'; const lastDate = localStorage.getItem(todayKey); const todayStr = new Date().toISOString().slice(0,10); if(lastDate!==todayStr){localStorage.setItem('rollbacks_date',todayStr); store.setRollbacks(0)} rollbackCountEl.textContent = store.getRollbacks(); }
+
+    // cooldown
+    function startCooldown(startTs){localStorage.setItem('cooldown_start',String(startTs)); cooldownArea.style.display='block'; updateCooldown();}
+    function updateCooldown(){const s = parseInt(localStorage.getItem('cooldown_start')||'0',10); if(!s){cooldownArea.style.display='none'; return} const elapsed=Date.now()-s; const rem = Math.max(0, COOLDOWN_MS - elapsed); const pct = Math.min(100, (elapsed/COOLDOWN_MS)*100); cooldownBar.style.width = pct+'%'; const m = Math.floor(rem/60000); const sec = Math.floor((rem%60000)/1000); cooldownLabel.textContent = `Post-remediation cooldown — ${m}m ${sec}s remaining`; if(rem<=0){localStorage.removeItem('cooldown_start'); cooldownArea.style.display='none'} else requestAnimationFrame(()=>setTimeout(updateCooldown, 500)); }
+
+    // heartbeat
+    let lastStatusFetchTs = 0;
+    function updateHeartbeat(){const age = Date.now() - lastStatusFetchTs; if(age>HEARTBEAT_THRESHOLD){agentPulse.classList.add('off'); agentLabel.textContent='Agent Offline'} else {agentPulse.classList.remove('off'); agentLabel.textContent='Agent Live'}}
+
+    // status polling and handling
+    let lastStatus = null;
+    const metricsHistory = {latency:[],errorRate:[],throughput:[]};
+
+    async function fetchStatus(){
+      try{
+        const res = await fetch('status.json',{cache:'no-store'}); if(!res.ok) throw new Error('no status'); const j = await res.json(); lastStatusFetchTs = Date.now(); updateHeartbeat(); handleStatus(j); pushActionLog('Fetched status', 'ok');
+      }catch(e){ updateHeartbeat(); pushActionLog('Status fetch failed','err'); }
+    }
+
+    function handleStatus(j){
+      const s = j.status || 'OK'; const metrics = {latency: j.latency||0, errorRate: j.errorRate||0, throughput: j.throughput||0};
+      state.status = s; state.metrics = metrics; state.lastStatusTs = Date.now();
+
+      // push timeline when status changes or periodically
+      if(s !== (lastStatus||s)){
+        store.pushTimeline({ts:Date.now(),type:s,latency:metrics.latency,errorRate:metrics.errorRate}); renderTimeline(); pushActionLog('Status changed to '+s, s==='INCIDENT'?'err':'ok');
+      }
+
+      // rollback detection (INCIDENT -> OK)
+      if(lastStatus==='INCIDENT' && s==='OK'){
+        const rb = store.getRollbacks()+1; store.setRollbacks(rb); rollbackCountEl.textContent=rb; startCooldown(Date.now()); pushActionLog('Rollback detected, incremented counter','ok')
+      }
+
+      // animate KPIs
+      animateNumber(latencyVal, parseInt(latencyVal.textContent)||0, metrics.latency, v=>v+'ms');
+      animateNumber(errorVal, parseInt(errorVal.textContent)||0, metrics.errorRate, v=>v+'%');
+      animateNumber(tpVal, parseInt(tpVal.textContent)||0, metrics.throughput, v=>v);
+
+      // update metric history and sparklines
+      appendHistory(metrics);
+
+      // incident mode styling
+      if(s==='INCIDENT'){document.body.classList.add('incident-mode'); document.querySelectorAll('.card').forEach(c=>c.classList.add('metric-incident'))} else {document.body.classList.remove('incident-mode'); document.querySelectorAll('.card').forEach(c=>c.classList.remove('metric-incident'))}
+
+      // latency pulse animation when >1000ms
+      if(metrics.latency>1000){latencyVal.style.color= 'var(--red)'; latencyVal.style.animation='pulse 1s infinite'; } else {latencyVal.style.color=''; latencyVal.style.animation=''; }
+
+      lastStatus = s;
+    }
+
+    function appendHistory(m){['latency','errorRate','throughput'].forEach(k=>{const arr = metricsHistory[k]; arr.push(m[k]); if(arr.length>20) arr.shift();}); drawSpark(latencySpark, metricsHistory.latency, '#06B6D4'); drawSpark(errorSpark, metricsHistory.errorRate, '#F97316'); drawSpark(tpSpark, metricsHistory.throughput, '#7C3AED'); }
+
+    // initialize
+    (function init(){ loadRollbacks(); renderTimeline(); renderTerminal(); const t = store.getTimeline(); if(t.length) renderTimeline(); fetchStatus(); updateCooldown(); setInterval(fetchStatus, POLL_INTERVAL); setInterval(updateHeartbeat, 2000); })();
+
+    // allow manual adding of timeline entries for demo via clicking timeline
+    timelineEl.addEventListener('click', ()=>{const entry={ts:Date.now(),type:'OK',latency:Math.floor(Math.random()*800),errorRate:Math.floor(Math.random()*5)}; store.pushTimeline(entry); renderTimeline(); pushActionLog('Manually added timeline event','ok')});
+
+    // expose for debugging
+    window.__dash = {store, state};
+  </script>
+</body>
+</html>
