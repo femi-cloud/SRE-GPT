@@ -175,6 +175,7 @@ export default function App() {
   }, []);
 
   const currentMetrics = data[data.length - 1] || { latency_ms: 0, error_rate: 0, availability: 1 };
+  const prevMetrics = data[data.length - 2];
   
   // Custom Recharts colors based on theme
   const axisColor = isDark ? '#9ca3af' : '#6b7280';
@@ -267,18 +268,24 @@ export default function App() {
               <KpiCard 
                 title={t.latencyLabel} 
                 value={`${Math.round(currentMetrics.latency_ms)} ms`}
+                prevValue={prevMetrics ? `${Math.round(prevMetrics.latency_ms)} ms` : undefined}
+                lowerIsBetter={true}
                 icon={<Network size={20} />}
                 status={currentMetrics.latency_ms > thresholds.latency ? 'danger' : 'normal'}
               />
               <KpiCard 
                 title={t.errorLabel} 
                 value={`${(currentMetrics.error_rate * 100).toFixed(1)}%`}
+                prevValue={prevMetrics ? `${(prevMetrics.error_rate * 100).toFixed(1)}%` : undefined}
+                lowerIsBetter={true}
                 icon={<Server size={20} />}
                 status={currentMetrics.error_rate > thresholds.errorRate ? 'danger' : 'normal'}
               />
               <KpiCard 
                 title={t.availLabel} 
                 value={`${(currentMetrics.availability * 100).toFixed(1)}%`}
+                prevValue={prevMetrics ? `${(prevMetrics.availability * 100).toFixed(1)}%` : undefined}
+                lowerIsBetter={false}
                 icon={<Cpu size={20} />}
                 status={currentMetrics.availability < 0.95 ? 'danger' : 'normal'}
               />
