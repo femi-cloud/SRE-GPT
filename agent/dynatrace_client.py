@@ -6,8 +6,8 @@ import random
 API_BASE_URL = os.getenv("API_BASE_URL", "https://sre-gpt-api.onrender.com")
 
 class DynatraceClient:
-    """Wrapper hybride : métriques réelles depuis l'API + Dynatrace pour les alertes."""
-    
+    """Hybrid wrapper: real metrics from the API + Dynatrace for alerts."""
+
     def __init__(self):
         self.base_url = DT_ENVIRONMENT_URL.rstrip('/')
         self.headers = {
@@ -16,15 +16,15 @@ class DynatraceClient:
         }
 
     def get_metrics(self):
-        """Récupère les métriques réelles en appelant directement l'API déployée."""
+        """Retrieves real metrics by directly calling the deployed API."""
         try:
-            # Mesure latence réelle sur /users
+            # Measure real latency on /users
             import time
             start = time.time()
             r = requests.get(f"{API_BASE_URL}/users", timeout=60)
             latency_ms = (time.time() - start) * 1000
 
-            # Mesure error rate sur /process (10 appels rapides)
+            # Measure error rate on /process (10 quick calls)
             errors = 0
             attempts = 10
             for _ in range(attempts):
@@ -37,7 +37,7 @@ class DynatraceClient:
 
             error_rate = errors / attempts
 
-            # Disponibilité via /health
+            # Availability via /health
             try:
                 h = requests.get(f"{API_BASE_URL}/health", timeout=60)
                 availability = 1.0 if h.status_code == 200 else 0.0
@@ -51,5 +51,5 @@ class DynatraceClient:
             }
 
         except Exception as e:
-            print(f"Erreur de récupération des métriques : {e}")
+            print(f"Error retrieving metrics: {e}")
             return None

@@ -5,25 +5,25 @@ from google import genai
 from config import GEMINI_API_KEY
 
 class ReportGenerator:
-    """Générateur de rapport d'incident LLM."""
-    
+    """LLM Incident Report Generator."""
+
     def __init__(self):
-        # Utilise le nouveau SDK @google/genai 
+        # Uses the new @google/genai SDK
         self.client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY and GEMINI_API_KEY != "xxxxx" else None
 
     def generate_incident_report(self, metrics, action_taken):
-        """Produit un diagnostic "Post-mortem" SRE et le sauvegarde au format texte dans le dashboard."""
+        """Produces an SRE 'Post-mortem' diagnostic and saves it as text in the dashboard."""
         prompt = f"""
-        En tant que Site Reliability Engineer (SRE) autonome, rédige un Post-Mortem.
-        L'incident : 
-        - Latence: {metrics.get('latency_ms')} ms
-        - Erreurs: {metrics.get('error_rate') * 100}%
-        
-        L'Action automatique exécutée par l'agent : {action_taken}
-        
-        Génère : (1) Bilan rapide, (2) Root cause probable, (3) Explication de l'action de rollback. Sois technique mais clair.
+        As an autonomous Site Reliability Engineer (SRE), write a Post-Mortem.
+        The incident:
+        - Latency: {metrics.get('latency_ms')} ms
+        - Errors: {metrics.get('error_rate') * 100}%
+
+        The automatic action executed by the agent: {action_taken}
+
+        Generate: (1) Quick summary, (2) Probable root cause, (3) Explanation of the rollback action. Be technical but clear.
         """
-        
+
         report_text = ""
         if self.client:
             try:
@@ -33,41 +33,41 @@ class ReportGenerator:
                 )
                 report_text = response.text
             except Exception as e:
-                report_text = f"Erreur Gemini: {e}\nMitigation automatique effectuée."
+                report_text = f"Gemini error: {e}\nAutomatic mitigation performed."
         else:
-            report_text = "Clé API Gemini non définie, mitigation par Rollback documentée basiquement."
-            
-        print("\n\n=== RAPPORT D'INCIDENT IA ===")
+            report_text = "Gemini API key not set, mitigation by Rollback documented basically."
+
+        print("\n\n=== AI INCIDENT REPORT ===")
         print(report_text)
         print("===============================\n\n")
-        
-        # Logguer informatiquement pour le Dashboard
+
+        # Log programmatically for the Dashboard
         report_dict = {
             "timestamp": datetime.datetime.now().isoformat(),
             "metrics": metrics,
             "action": action_taken,
             "analysis": report_text
         }
-        
+
         os.makedirs("../dashboard", exist_ok=True)
         try:
             with open("../dashboard/status.json", "w") as f:
                 json.dump(report_dict, f, indent=4)
         except Exception:
             pass
-        
+
     def analyze_only(self, metrics) -> str:
-        """Analyse rapide de la root cause sans générer de rapport complet."""
+        """Quick root cause analysis without generating a full report."""
         prompt = f"""
-        En tant que SRE, identifie la root cause probable en UNE phrase courte.
-        Métriques actuelles :
-        - Latence: {metrics.get('latency_ms')} ms (seuil: 1000ms)
-        - Erreurs: {metrics.get('error_rate') * 100}% (seuil: 10%)
-        - Disponibilité: {metrics.get('availability') * 100}%
-        
-        Réponds en une seule phrase technique et actionnable.
+        As an SRE, identify the probable root cause in ONE short sentence.
+        Current metrics:
+        - Latency: {metrics.get('latency_ms')} ms (threshold: 1000ms)
+        - Errors: {metrics.get('error_rate') * 100}% (threshold: 10%)
+        - Availability: {metrics.get('availability') * 100}%
+
+        Respond in a single technical and actionable sentence.
         """
-        
+
         if self.client:
             try:
                 response = self.client.models.generate_content(
@@ -76,11 +76,11 @@ class ReportGenerator:
                 )
                 return response.text.strip()
             except Exception as e:
-                return f"Analyse indisponible : {e}"
+                return f"Analysis unavailable: {e}"
         else:
             if metrics.get('latency_ms', 0) > 1000:
-                return "Latence élevée détectée — possible délai artificiel ou surcharge DB."
+                return "High latency detected — possible artificial delay or DB overload."
             elif metrics.get('error_rate', 0) > 0.1:
-                return "Taux d'erreur élevé — instabilité du service ou erreur de code récente."
+                return "High error rate — service instability or recent code error."
             else:
-                return "Disponibilité dégradée — service potentiellement en cold start."
+                return "Degraded availability — service potentially in cold start."

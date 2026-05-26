@@ -15,7 +15,7 @@ RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
 RENDER_SERVICE_ID = os.getenv("RENDER_SERVICE_ID", "")
 
 def write_dashboard(metrics, status, analysis="", action=""):
-    """Écrit l'état dans dashboard/status.json."""
+    """Writes the state to dashboard/status.json."""
     os.makedirs("../dashboard", exist_ok=True)
     out = {
         "timestamp": datetime.datetime.now().isoformat(),
@@ -26,45 +26,45 @@ def write_dashboard(metrics, status, analysis="", action=""):
     }
     with open("../dashboard/status.json", "w") as f:
         json.dump(out, f, indent=4)
-    print(f"[Dashboard] Mis à jour → {status}")
+    print(f"[Dashboard] Updated → {status}")
 
 def auto_repair(cause: str, metrics: dict) -> bool:
     """
-    Étape 2 — Tentative de réparation automatique avant rollback.
-    Retourne True si réparé, False sinon.
+    Step 2 — Attempt automatic repair before rollback.
+    Returns True if repaired, False otherwise.
     """
-    print("🔧 Tentative d'auto-réparation...")
+    print("🔧 Attempting auto-repair...")
 
-    # Stratégie 1 : Latence élevée → reset les simulations
+    # Strategy 1: High latency → reset simulation parameters
     if metrics["latency_ms"] > config.ALERT_LATENCY_MS:
-        print("  → Latence élevée détectée : reset des paramètres de simulation...")
+        print("  → High latency detected: resetting simulation parameters...")
         try:
             r = requests.post(f"{API_BASE_URL}/simulate/reset", timeout=30)
             if r.status_code == 200:
-                print("  ✅ Reset effectué")
+                print("  ✅ Reset performed")
                 return True
         except Exception as e:
-            print(f"  ❌ Reset échoué : {e}")
+            print(f"  ❌ Reset failed: {e}")
 
-    # Stratégie 2 : Error rate élevé → reset les erreurs
+    # Strategy 2: High error rate → reset error rate
     if metrics["error_rate"] > config.ALERT_ERROR_RATE:
-        print("  → Taux d'erreur élevé : reset du taux d'erreur...")
+        print("  → High error rate: resetting error rate...")
         try:
             r = requests.post(f"{API_BASE_URL}/simulate/errors?rate=0.0", timeout=30)
             if r.status_code == 200:
-                print("  ✅ Taux d'erreur réinitialisé")
+                print("  ✅ Error rate reset")
                 return True
         except Exception as e:
-            print(f"  ❌ Échec reset erreurs : {e}")
+            print(f"  ❌ Error rate reset failed: {e}")
 
-    # Stratégie 3 : Disponibilité faible → ping répété pour wake up
+    # Strategy 3: Low availability → repeated ping to wake up
     if metrics["availability"] < 0.95:
-        print("  → Service indisponible : tentative de wake-up...")
+        print("  → Service unavailable: attempting wake-up...")
         for i in range(3):
             try:
                 r = requests.get(f"{API_BASE_URL}/health", timeout=30)
                 if r.status_code == 200:
-                    print(f"  ✅ Service réveillé après {i+1} tentative(s)")
+                    print(f"  ✅ Service awakened after {i+1} attempt(s)")
                     return True
             except:
                 time.sleep(10)
@@ -73,15 +73,15 @@ def auto_repair(cause: str, metrics: dict) -> bool:
 
 def rollback(metrics: dict) -> bool:
     """
-    Étape 3 — Rollback vers le déploiement précédent via API Render.
+    Step 3 — Rollback to previous deployment via Render API.
     """
-    print("🔄 Rollback en cours via API Render...")
+    print("🔄 Rollback in progress via Render API...")
 
     if not RENDER_API_KEY or not RENDER_SERVICE_ID:
-        print("  ⚠️  RENDER_API_KEY ou RENDER_SERVICE_ID manquant — rollback simulé")
-        # Simulation pour la démo si pas de clé API
+        print("  ⚠️  RENDER_API_KEY or RENDER_SERVICE_ID missing — simulated rollback")
+        # Simulation for demo if no API key
         time.sleep(3)
-        print("  ✅ Rollback simulé effectué")
+        print("  ✅ Simulated rollback performed")
         return True
 
     try:
@@ -90,7 +90,7 @@ def rollback(metrics: dict) -> bool:
             "Content-Type": "application/json"
         }
 
-        # Récupère la liste des déploiements
+        # Retrieve the list of deployments
         r = requests.get(
             f"https://api.render.com/v1/services/{RENDER_SERVICE_ID}/deploys",
             headers=headers,
@@ -98,12 +98,12 @@ def rollback(metrics: dict) -> bool:
         )
         deploys = r.json()
 
-        # Trouve le dernier déploiement stable (2ème de la liste)
+        # Find the last stable deployment (2nd in the list)
         if len(deploys) >= 2:
             stable_deploy_id = deploys[1]["deploy"]["id"]
-            print(f"  → Rollback vers déploiement : {stable_deploy_id}")
+            print(f"  → Rollback to deployment: {stable_deploy_id}")
 
-            # Déclenche le rollback
+            # Trigger the rollback
             r2 = requests.post(
                 f"https://api.render.com/v1/services/{RENDER_SERVICE_ID}/deploys",
                 headers=headers,
@@ -111,69 +111,69 @@ def rollback(metrics: dict) -> bool:
                 timeout=30
             )
             if r2.status_code in [200, 201]:
-                print("  ✅ Rollback déclenché avec succès")
+                print("  ✅ Rollback successfully triggered")
                 return True
 
     except Exception as e:
-        print(f"  ❌ Erreur rollback : {e}")
+        print(f"  ❌ Rollback error: {e}")
 
     return False
 
 def run():
-    print("🚀 SRE-GPT Démarré : Analyse toutes les 60s...")
-    print(f"   API cible : {API_BASE_URL}")
+    print("🚀 SRE-GPT Started: Analyzing every 60s...")
+    print(f"   Target API: {API_BASE_URL}")
 
     while True:
         try:
-            # Étape 1 — Collecte des métriques
+            # Step 1 — Collect metrics
             metrics = DT_CLIENT.get_metrics()
             if not metrics:
                 time.sleep(60)
                 continue
 
-            print(f"\n📊 Métriques → Latence: {metrics['latency_ms']}ms | "
-                  f"Erreurs: {metrics['error_rate']*100:.1f}% | "
-                  f"Dispo: {metrics['availability']*100:.1f}%")
+            print(f"\n📊 Metrics → Latency: {metrics['latency_ms']}ms | "
+                  f"Errors: {metrics['error_rate']*100:.1f}% | "
+                  f"Availability: {metrics['availability']*100:.1f}%")
 
             latency_ok = metrics["latency_ms"] <= config.ALERT_LATENCY_MS
             error_ok = metrics["error_rate"] <= config.ALERT_ERROR_RATE
             avail_ok = metrics["availability"] >= 0.95
 
             if latency_ok and error_ok and avail_ok:
-                # Tout va bien
+                # All good
                 write_dashboard(metrics, "OK")
-                print("✅ Tout est normal")
+                print("✅ All normal")
 
             else:
-                # Anomalie détectée
-                print("⚠️  ANOMALIE DÉTECTÉE")
+                # Anomaly detected
+                print("⚠️  ANOMALY DETECTED")
                 write_dashboard(metrics, "INCIDENT")
 
-                # Étape 2 — Analyse Gemini
-                print("🧠 Gemini analyse la root cause...")
+                # Step 2 — Gemini analysis
+                print("🧠 Gemini analyzing root cause...")
                 analysis = REPORTER.analyze_only(metrics)
                 print(f"   → {analysis}")
 
-                # Étape 3 — Tentative d'auto-réparation
+                # Step 3 — Attempt auto-repair
                 repaired = auto_repair(analysis, metrics)
-                time.sleep(30)  # attend 30s pour vérifier
+                time.sleep(30)  # wait 30s to check
 
-                # Vérifie si réparé
+                # Check if repaired
                 new_metrics = DT_CLIENT.get_metrics()
 
                 if new_metrics and \
                    new_metrics["latency_ms"] <= config.ALERT_LATENCY_MS and \
                    new_metrics["error_rate"] <= config.ALERT_ERROR_RATE:
 
-                    print("✅ AUTO-RÉPARÉ sans rollback !")
+                    print("✅ AUTO-REPAIRED without rollback!")
                     REPORTER.generate_incident_report(metrics, "AUTO_REPAIR")
                     write_dashboard(new_metrics, "OK", analysis, "AUTO_REPAIR ✅")
 
                 else:
-                    # Étape 4 — Rollback
-                    print("⚠️  Auto-réparation insuffisante → Rollback...")
+                    # Step 4 — Rollback
+                    print("⚠️  Auto-repair insufficient → Rollback...")
                     success = rollback(metrics)
-                    action = "ROLLBACK ✅" if success else "ROLLBACK ÉCHOUÉ ❌"
+                    action = "ROLLBACK ✅" if success else "ROLLBACK FAILED ❌"
                     REPORTER.generate_incident_report(metrics, action)
                     write_dashboard(
                         new_metrics or metrics,
@@ -182,16 +182,16 @@ def run():
                         action
                     )
                     print(f"🏁 {action}")
-                    print("⏳ Cooldown de 5 minutes...")
+                    print("⏳ Cooldown 5 minutes...")
                     time.sleep(300)
 
             time.sleep(60)
 
         except KeyboardInterrupt:
-            print("\n👋 Agent arrêté.")
+            print("\n👋 Agent stopped.")
             break
         except Exception as e:
-            print(f"❌ Erreur inattendue : {e}")
+            print(f"❌ Unexpected error: {e}")
             time.sleep(60)
 
 if __name__ == "__main__":
