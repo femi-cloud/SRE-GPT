@@ -1,11 +1,12 @@
 {
-    "timestamp": "2026-05-26T01:57:08.523718",
+    "timestamp": "2026-05-26T23:49:07.927576",
     "metrics": {
-        "latency_ms": 421.78,
+        "latency_ms": 1959.7,
         "error_rate": 0.0,
         "availability": 1.0
     },
     "status": "ROLLBACK",
-    "analysis": "L'\u00e9l\u00e9vation de la latence sans erreurs ni indisponibilit\u00e9 sugg\u00e8re un goulot d'\u00e9tranglement li\u00e9 \u00e0 la saturation des ressources ou \u00e0 la lenteur d'une d\u00e9pendance (base de donn\u00e9es, service externe).",
-    "action": "ROLLBACK \u2705"
+    "analysis": "**Investigate resource saturation (CPU, memory, I/O) or a slow downstream dependency causing the severe latency.**",
+    "action": "ROLLBACK \u2705",
+    "davis_insight": ""
 }
