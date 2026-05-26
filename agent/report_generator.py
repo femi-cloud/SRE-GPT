@@ -28,7 +28,7 @@ class ReportGenerator:
         if self.client:
             try:
                 response = self.client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.1-flash-lite',
                     contents=prompt
                 )
                 report_text = response.text
@@ -55,3 +55,32 @@ class ReportGenerator:
                 json.dump(report_dict, f, indent=4)
         except Exception:
             pass
+        
+    def analyze_only(self, metrics) -> str:
+        """Analyse rapide de la root cause sans générer de rapport complet."""
+        prompt = f"""
+        En tant que SRE, identifie la root cause probable en UNE phrase courte.
+        Métriques actuelles :
+        - Latence: {metrics.get('latency_ms')} ms (seuil: 1000ms)
+        - Erreurs: {metrics.get('error_rate') * 100}% (seuil: 10%)
+        - Disponibilité: {metrics.get('availability') * 100}%
+        
+        Réponds en une seule phrase technique et actionnable.
+        """
+        
+        if self.client:
+            try:
+                response = self.client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt
+                )
+                return response.text.strip()
+            except Exception as e:
+                return f"Analyse indisponible : {e}"
+        else:
+            if metrics.get('latency_ms', 0) > 1000:
+                return "Latence élevée détectée — possible délai artificiel ou surcharge DB."
+            elif metrics.get('error_rate', 0) > 0.1:
+                return "Taux d'erreur élevé — instabilité du service ou erreur de code récente."
+            else:
+                return "Disponibilité dégradée — service potentiellement en cold start."
