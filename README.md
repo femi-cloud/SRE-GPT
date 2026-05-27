@@ -40,10 +40,10 @@ Glassmorphism Dashboard (live status.json polling)
 |---|---|
 | Target API | FastAPI + PostgreSQL (Render) |
 | Monitoring | Dynatrace MCP Server v1.8.5 |
-| AI Engine | Gemini 2.5 Flash (Google GenAI SDK) |
+| AI Engine | Gemini 3.1 Flash Lite (Google GenAI SDK) |
 | Remediation | Render REST API v1 |
 | Dashboard | Pure HTML/CSS/JS + Chart.js + Tailwind CDN |
-| Agent | Python 3.12 |
+| Agent | Python 3.13 |
 
 ---
 
