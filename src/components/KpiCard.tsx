@@ -40,10 +40,10 @@ export function KpiCard({
   const hasChanged = prevNum !== undefined && Math.abs(diff) > 0.001;
 
   return (
-    <div className={`p-6 rounded-2xl border transition-all duration-300 hover:scale-[1.01] ${
+    <div className={`p-6 transition-all duration-300 hover:scale-[1.01] ${
       isDanger 
-        ? 'bg-red-500/10 border-red-500/30 shadow-[0_4px_30px_rgba(239,68,68,0.1)]' 
-        : 'glass-card border-slate-200/50 dark:border-white/10'
+        ? 'glass-card border-red-500/30 dark:border-red-500/40 shadow-[0_4px_30px_rgba(239,68,68,0.1)] bg-red-500/5 dark:bg-red-950/20' 
+        : 'glass-card'
     }`}>
       <div className="flex items-center gap-3 mb-4">
         <div className={`p-2.5 rounded-xl transition-colors ${isDanger ? 'bg-red-500/20 text-red-400' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400'}`}>

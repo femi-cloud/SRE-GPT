@@ -145,6 +145,69 @@ export default function App() {
     return [];
   });
 
+  const getLocalizedIncident = (inc: IncidentReport | null, currentLang: 'en' | 'fr'): IncidentReport | null => {
+    if (!inc) return null;
+    if (currentLang === 'en') return inc;
+
+    const translations: Record<string, { actionFr: string; analysisFr: string }> = {
+      "Container Auto-Scaling Triggered (GCP Cloud Run)": {
+        actionFr: "Démarrage d'Auto-Scaling (GCP Cloud Run)",
+        analysisFr: "Alerte d'anomalie : Dégradation des performances détectée.\n\n- Le profil d'exécution sous-nominal a violé les politiques de protection actives.\n- Latence observée : [LATENCY]ms (seuil : [LATENCY_THRESHOLD]ms).\n- Taux d'erreur observé : [ERROR_RATE]% (seuil : [ERROR_THRESHOLD]%).\n\nCause profonde : Épuisement des ressources détecté sur la région du cluster principal sous la configuration de trafic actuelle.\nAction : L'agent autonome IA a attribué une capacité supplémentaire et a routé des vecteurs de préchauffage de latence."
+      },
+      "Horizontal Replication Scale Up (+4 Pods)": {
+        actionFr: "Mise à l'échelle horizontale (+4 Pods)",
+        analysisFr: "Alerte d'anomalie : Seuil de latence dépassé.\n\n- Latence observée : [LATENCY]ms (plafond d'alerte : [LATENCY_THRESHOLD]ms).\n- Allocation de sockets de base de données active élevée.\n\nCause profonde : Verrous transactionnels lents provoquant un encombrement sur les tables de lecture.\nAction : L'agent autonome a déployé des instances de conteneurs actives supplémentaires pour équilibrer l'allocation et a vidé les connexions obsolètes."
+      },
+      "Automated Canary Rollback (Rev Stable v2.10.4)": {
+        actionFr: "Retour automatique de canary (Rév Stable v2.10.4)",
+        analysisFr: "Alerte d'anomalie : Pic d'erreurs violant les marges de sécurité de production.\n\n- Taux d'erreur simulé : [ERROR_RATE]% (plafond d'alerte : [ERROR_THRESHOLD]%).\n\nCause profonde : Variable d'environnement manquante provoquant l'échec d'identification des API en aval.\nAction : L'agent autonome a réussi à rediriger 100% des connexions vers la version précédente entièrement validée."
+      },
+      "Gateway Outage Protection Redirect (Cloud DNS Failover)": {
+        actionFr: "Redirection de protection contre les pannes (Cloud DNS)",
+        analysisFr: "Alerte d'anomalie : Interruption totale de service détectée.\n\n- Violation critique : Combinaison de la latence ([LATENCY]ms) et du taux d'erreur ([ERROR_RATE]%) atteignant le seuil d'urgence.\n- Disponibilité de service tombée sous le SLA de production : [AVAILABILITY]%.\n\nCause profonde : Déconnexion complète des microservices de base. Panne de connexion en cascade.\nAction : L'agent autonome a activé le failover DNS d'urgence et a redirigé le trafic d'entrée vers la région de secours secondaire."
+      }
+    };
+
+    let matchedKeyStyle = Object.keys(translations).find(key => 
+      inc.action === key || inc.action.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(inc.action.toLowerCase())
+    );
+
+    if (matchedKeyStyle) {
+      const match = translations[matchedKeyStyle];
+      let localizedAnalysis = match.analysisFr;
+
+      const latMatch = inc.analysis.match(/observed:\s*(\d+)ms|Latency observed:\s*(\d+)ms|Observed Latency:\s*(\d+)ms|latency\s+([0-9]+)/i);
+      const latVal = latMatch ? (latMatch[1] || latMatch[2] || latMatch[3] || latMatch[4]) : '1100';
+
+      const latThreshMatch = inc.analysis.match(/threshold:\s*(\d+)ms|ceiling:\s*(\d+)ms/i);
+      const latThreshVal = latThreshMatch ? (latThreshMatch[1] || latThreshMatch[2]) : '1000';
+
+      const errMatch = inc.analysis.match(/rate observed:\s*([\d\.]+)%|Error rate observed:\s*([\d\.]+)%|Error Rate:\s*([\d\.]+)%|Simulated Error Rate:\s*([\d\.]+)%/i);
+      const errVal = errMatch ? (errMatch[1] || errMatch[2] || errMatch[3] || errMatch[4]) : '15';
+
+      const errThreshMatch = inc.analysis.match(/threshold:\s*([\d\.]+)%|ceiling:\s*([\d\.]+)%/i);
+      const errThreshVal = errThreshMatch ? (errThreshMatch[1] || errThreshMatch[2]) : '10';
+
+      const availMatch = inc.analysis.match(/below SLA:\s*([\d\.]+)%|availability:\s*([\d\.]+)%/i);
+      const availVal = availMatch ? (availMatch[1] || availMatch[2]) : '95';
+
+      localizedAnalysis = localizedAnalysis
+        .replace('[LATENCY]', latVal)
+        .replace('[LATENCY_THRESHOLD]', latThreshVal)
+        .replace('[ERROR_RATE]', errVal)
+        .replace('[ERROR_THRESHOLD]', errThreshVal)
+        .replace('[AVAILABILITY]', availVal);
+
+      return {
+        ...inc,
+        action: match.actionFr,
+        analysis: localizedAnalysis
+      };
+    }
+
+    return inc;
+  };
+
   useEffect(() => {
     localStorage.setItem('sre_recent_incidents', JSON.stringify(pastIncidents));
   }, [pastIncidents]);
@@ -236,15 +299,15 @@ export default function App() {
       const f = activeFaultRef.current;
 
       // Apply faulty overrides or incident state conditions
-      if (f === 'latency' || (currentStatus === 'INCIDENT' && f !== 'error' && f !== 'both')) {
+      if (f === 'latency' || (currentStatus === 'INCIDENT' && f === 'none')) {
         latency_ms = 1150 + Math.random() * 250;
         error_rate = baseError + 0.012 + Math.random() * 0.012;
         availability = 0.985;
-      } else if (f === 'error' || (currentStatus === 'INCIDENT' && f === 'error')) {
+      } else if (f === 'error') {
         latency_ms = baseLatency + 60 + Math.random() * 40;
         error_rate = 0.16 + Math.random() * 0.05;
         availability = 0.952;
-      } else if (f === 'both' || (currentStatus === 'INCIDENT' && f === 'both')) {
+      } else if (f === 'both') {
         latency_ms = 1950 + Math.random() * 300;
         error_rate = 0.35 + Math.random() * 0.08;
         availability = 0.68 + Math.random() * 0.07;
@@ -347,6 +410,8 @@ export default function App() {
   const currentMetrics = data[data.length - 1] || { latency_ms: 0, error_rate: 0, availability: 1 };
   const prevMetrics = data[data.length - 2];
   
+  const localizedIncident = getLocalizedIncident(incident, lang);
+  
   // Custom Recharts colors based on theme
   const axisColor = isDark ? '#9ca3af' : '#475569';
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)';
@@ -359,18 +424,18 @@ export default function App() {
   };
 
   const downloadCurrentReport = () => {
-    if (!incident) return;
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(incident, null, 2));
+    if (!localizedIncident) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(localizedIncident, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `incident_report_${new Date(incident.timestamp).getTime()}.json`);
+    downloadAnchorNode.setAttribute("download", `incident_report_${new Date(localizedIncident.timestamp).getTime()}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
   };
 
   const downloadCurrentReportPDF = () => {
-    if (!incident) return;
+    if (!localizedIncident) return;
     const doc = new jsPDF();
     
     // Header band background with professional deep slate color (RGB: 15, 23, 42)
@@ -422,8 +487,8 @@ export default function App() {
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(15, 23, 42);
-    doc.text(incident.id, 18, 76);
-    doc.text(new Date(incident.timestamp).toUTCString(), 18, 88);
+    doc.text(localizedIncident.id, 18, 76);
+    doc.text(new Date(localizedIncident.timestamp).toUTCString(), 18, 88);
     doc.text("Service Sub-Nominal (Active Outage)", 18, 100);
     doc.text("Autonomous SRE-GPT Agent v1", 18, 112);
 
@@ -441,7 +506,7 @@ export default function App() {
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(15, 23, 42);
-    const actionLines = doc.splitTextToSize(incident.action, 81);
+    const actionLines = doc.splitTextToSize(localizedIncident.action, 81);
     doc.text(actionLines, 111, 77);
 
     // Section 2 Header (Root Cause)
@@ -457,7 +522,7 @@ export default function App() {
     doc.setFontSize(10);
     doc.setTextColor(51, 65, 85); // slate-700
     
-    const analysisWrapped = doc.splitTextToSize(incident.analysis, 182);
+    const analysisWrapped = doc.splitTextToSize(localizedIncident.analysis, 182);
     
     let cursorY = 145;
     analysisWrapped.forEach((line: string) => {
@@ -485,30 +550,30 @@ export default function App() {
     doc.text("CONFIDENTIAL - SYSTEM AUTO-GENERATED POST-MORTEM REPORT. INTERNAL SRE MONITORING.", 14, 286);
     doc.text(`Generated at ${new Date().toUTCString()}`, 154, 286);
     
-    doc.save(`incident_report_postmortem_${incident.id}.pdf`);
+    doc.save(`incident_report_postmortem_${localizedIncident.id}.pdf`);
   };
 
   return (
     <div className={`min-h-screen text-slate-900 dark:text-slate-100 font-sans p-4 md:p-8 relative overflow-hidden transition-colors ${status === 'INCIDENT' ? 'status-incident' : ''}`}>
       {/* Subtle Radial Gradient Overlays */}
       <div 
-        className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[130px] pointer-events-none transition-all duration-500" 
+        className="absolute -top-40 -left-40 w-150 h-150 rounded-full blur-[130px] pointer-events-none transition-all duration-500" 
         style={{ 
-          backgroundColor: isDark ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.05)' 
+          backgroundColor: isDark ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 182, 212, 0.09)' 
         }} 
       />
       <div 
-        className="absolute -bottom-40 -right-40 w-[700px] h-[700px] rounded-full blur-[150px] pointer-events-none transition-all duration-500" 
+        className="absolute -bottom-40 -right-40 w-175 h-175 rounded-full blur-[150px] pointer-events-none transition-all duration-500" 
         style={{ 
-          backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.05)' 
+          backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.09)' 
         }} 
       />
 
       <div className="max-w-7xl mx-auto space-y-6 relative z-10">
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 border-slate-200/50 dark:border-white/10 transition-colors">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 transition-all">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+            <div className="h-12 w-12 rounded-xl bg-linear-to-br from-cyan-500 to-purple-600 flex items-center justify-center font-bold text-lg text-white shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               SRE
             </div>
             <div>
@@ -518,6 +583,16 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Nav Switch link to Static Dashboard */}
+            <a
+              href="/dashboard/index.html"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/45 dark:hover:bg-indigo-900/40 border border-indigo-200/50 dark:border-indigo-500/20 text-indigo-650 dark:text-indigo-400 text-xs cursor-pointer h-9 transition-colors shadow-sm no-underline"
+              title={lang === 'en' ? 'Switch to Ops Center' : 'Basculer vers le Centre d\'Opérations'}
+            >
+              <Server size={14} className="text-indigo-600 dark:text-indigo-400" />
+              <span>{lang === 'en' ? 'Ops Center' : 'Centre Ops'}</span>
+            </a>
+
             {/* Pulsing "Agent Live" Heartbeat Dot Top-Right */}
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl shadow-sm h-9">
               <div className="heartbeat-dot animate-pulse"></div>
@@ -634,7 +709,15 @@ export default function App() {
                     <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: axisColor }} minTickGap={30} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: axisColor }} tickFormatter={(tick) => `${(tick * 100).toFixed(0)}%`} />
                     <Tooltip 
-                      formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, 'Error Rate']}
+                      formatter={(value) => {
+                        if (Array.isArray(value)) {
+                          return value.map(v => typeof v === 'number' ? `${(v * 100).toFixed(2)}%` : String(v)).join(', ');
+                        }
+                        if (typeof value === 'number') {
+                          return `${(value * 100).toFixed(2)}%`;
+                        }
+                        return String(value ?? '');
+                      }}
                       contentStyle={tooltipStyle}
                     />
                     <Line 
@@ -670,7 +753,12 @@ export default function App() {
                     tickFormatter={(tick) => tick === 2 ? 'INCIDENT' : tick === 1 ? 'COOLDOWN' : 'OK'} 
                   />
                   <Tooltip 
-                    formatter={(value: number) => [value === 2 ? 'INCIDENT' : value === 1 ? 'COOLDOWN' : 'OK', 'System Status']}
+                    formatter={(value) => {
+                      if (Array.isArray(value)) {
+                        return value.map(v => Number(v) === 2 ? 'INCIDENT' : Number(v) === 1 ? 'COOLDOWN' : 'OK').join(', ');
+                      }
+                      return Number(value) === 2 ? 'INCIDENT' : Number(value) === 1 ? 'COOLDOWN' : 'OK';
+                    }}
                     contentStyle={tooltipStyle}
                   />
                   <Area 
@@ -688,12 +776,12 @@ export default function App() {
 
             {/* AI Report Section */}
             <AnimatePresence>
-              {incident && (
+              {localizedIncident && (
                 <motion.div 
                    initial={{ opacity: 0, height: 0, scale: 0.98 }} 
                    animate={{ opacity: 1, height: 'auto', scale: 1 }} 
                    exit={{ opacity: 0, height: 0, scale: 0.98 }}
-                   className="glass-card border-slate-200/50 dark:border-white/10 overflow-hidden transform-gpu"
+                   className="glass-card overflow-hidden transform-gpu"
                 >
                   <div className="bg-indigo-500/10 p-5 px-6 border-b border-slate-200/50 dark:border-white/8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
@@ -703,9 +791,9 @@ export default function App() {
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1.5">{t.aiReport}</h3>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 font-medium font-mono">
-                          <span className="bg-indigo-500/10 dark:bg-indigo-500/20 px-2.5 py-1 rounded-md text-indigo-700 dark:text-indigo-300">{t.action}: {incident.action}</span>
+                          <span className="bg-indigo-500/10 dark:bg-indigo-500/20 px-2.5 py-1 rounded-md text-indigo-700 dark:text-indigo-300">{t.action}: {localizedIncident.action}</span>
                           <span className="hidden sm:inline opacity-60">•</span>
-                          <span className="opacity-80">{new Date(incident.timestamp).toLocaleTimeString()}</span>
+                          <span className="opacity-80">{new Date(localizedIncident.timestamp).toLocaleTimeString()}</span>
                         </div>
                       </div>
                     </div>
@@ -728,7 +816,7 @@ export default function App() {
                   </div>
                   <div className="p-6 px-8 bg-transparent">
                     <div className="prose prose-indigo dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 font-medium whitespace-pre-line text-[15px] leading-relaxed">
-                       {incident.analysis}
+                       {localizedIncident.analysis}
                     </div>
                   </div>
                 </motion.div>
@@ -736,7 +824,7 @@ export default function App() {
             </AnimatePresence>
 
             {/* Terminal Action Log at the Bottom of Left Column */}
-            <div className="glass-card p-0 flex flex-col h-[300px] border-slate-200/50 dark:border-white/10 overflow-hidden w-full">
+            <div className="glass-card p-0 flex flex-col h-75 overflow-hidden w-full">
               <div className="bg-slate-100 dark:bg-black/40 px-4 py-2.5 border-b border-slate-200/50 dark:border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
@@ -785,7 +873,7 @@ export default function App() {
               lang={lang}
             />
             <SettingsPanel thresholds={thresholds} onThresholdChange={setThresholds} />
-            <RecentIncidents incidents={pastIncidents} />
+            <RecentIncidents incidents={pastIncidents.map(inc => getLocalizedIncident(inc, lang) as IncidentReport)} />
           </div>
         </div>
 
@@ -835,7 +923,7 @@ export default function App() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ type: "spring", duration: 0.4 }}
-              className="glass-card w-full max-w-md bg-slate-900/95 dark:bg-[#0B1220]/95 border border-slate-200/50 dark:border-white/10 p-6 rounded-2xl shadow-2xl relative z-10"
+              className="glass-card w-full max-w-md p-6 relative z-10"
               role="dialog"
               aria-modal="true"
               aria-labelledby="help-modal-title"
@@ -866,7 +954,7 @@ export default function App() {
               <div className="space-y-4">
                 {/* D Shortcut */}
                 <div className="flex items-start gap-4 p-3 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="flex items-center justify-center min-w-[32px] h-8 bg-slate-100 dark:bg-white/10 px-2.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
+                  <span className="flex items-center justify-center min-w-8 h-8 bg-slate-100 dark:bg-white/10 px-2.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
                     D
                   </span>
                   <div className="flex-1">
@@ -881,7 +969,7 @@ export default function App() {
 
                 {/* S Shortcut */}
                 <div className="flex items-start gap-4 p-3 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="flex items-center justify-center min-w-[32px] h-8 bg-slate-100 dark:bg-white/10 px-2.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
+                  <span className="flex items-center justify-center min-w-8 h-8 bg-slate-100 dark:bg-white/10 px-2.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
                     S
                   </span>
                   <div className="flex-1">
@@ -896,7 +984,7 @@ export default function App() {
 
                 {/* H / ? Shortcut */}
                 <div className="flex items-start gap-4 p-3 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="flex items-center justify-center min-w-[32px] h-8 bg-slate-100 dark:bg-white/10 px-1.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
+                  <span className="flex items-center justify-center min-w-8 h-8 bg-slate-100 dark:bg-white/10 px-1.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-black text-sm text-indigo-650 dark:text-indigo-400 shadow-sm">
                     H / ?
                   </span>
                   <div className="flex-1">
@@ -911,7 +999,7 @@ export default function App() {
 
                 {/* ESC Shortcut */}
                 <div className="flex items-start gap-4 p-3 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 opacity-85">
-                  <span className="flex items-center justify-center min-w-[32px] h-8 bg-slate-100 dark:bg-white/10 px-1.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-bold text-[10px] text-slate-600 dark:text-slate-400 shadow-sm uppercase">
+                  <span className="flex items-center justify-center min-w-8 h-8 bg-slate-100 dark:bg-white/10 px-1.5 rounded-lg border border-slate-200 dark:border-white/15 font-mono font-bold text-[10px] text-slate-600 dark:text-slate-400 shadow-sm uppercase">
                     Esc
                   </span>
                   <div className="flex-1">

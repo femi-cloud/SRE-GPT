@@ -27,7 +27,7 @@ export function RecentIncidents({ incidents }: RecentIncidentsProps) {
   if (incidents.length === 0 && !searchTerm) return null;
 
   return (
-    <div className="glass-card p-6 border border-slate-200/50 dark:border-white/10 transition-colors mt-6 flex flex-col max-h-[600px]">
+    <div className="glass-card p-6 transition-all mt-6 flex flex-col max-h-[600px]">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300">
           <History size={20} />

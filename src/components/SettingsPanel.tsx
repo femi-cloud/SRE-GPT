@@ -8,7 +8,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ thresholds, onThresholdChange }: SettingsPanelProps) {
   return (
-    <div className="glass-card p-6 border border-slate-200/50 dark:border-white/10 transition-colors">
+    <div className="glass-card p-6 transition-all">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300">
           <Settings2 size={20} />

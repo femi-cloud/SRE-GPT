@@ -57,7 +57,7 @@ export function SimulationControls({
   }[lang];
 
   return (
-    <div className="glass-card p-6 border border-slate-200/50 dark:border-white/10 transition-colors">
+    <div className="glass-card p-6 transition-all">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300">
