@@ -1,12 +1,12 @@
 {
-    "timestamp": "2026-05-27T00:18:06.933174",
+    "timestamp": "2026-05-27T17:24:38.792588",
     "metrics": {
-        "latency_ms": 1810.47,
-        "error_rate": 0.0,
+        "latency_ms": 1280.3,
+        "error_rate": 0.1,
         "availability": 1.0
     },
     "status": "ROLLBACK",
-    "analysis": "The probable root cause is a performance bottleneck, likely stemming from resource saturation or inefficient database query execution.",
+    "analysis": "Resource saturation is the probable root cause; analyze CPU, memory, disk I/O, and network metrics.",
     "action": "ROLLBACK \u2705",
     "davis_insight": ""
 }

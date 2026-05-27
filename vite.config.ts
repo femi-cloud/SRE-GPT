@@ -6,6 +6,7 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    publicDir: 'dashboard',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
