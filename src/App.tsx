@@ -482,7 +482,7 @@ export default function App() {
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 transition-all">
           <div className="flex items-center gap-4">
-            <img src="logo.svg" class="h-10 w-10" alt="SRE-GPT"/>
+            <img src="logo.svg" className="h-10 w-10" alt="SRE-GPT"/>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{t.title}</h1>
               <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">{t.subtitle}</p>
