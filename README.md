@@ -90,23 +90,31 @@ Push the `api/` folder to a Render Web Service with:
 $env:DT_ENVIRONMENT="https://YOUR_ENV.apps.dynatrace.com"
 npx -y @dynatrace-oss/dynatrace-mcp-server@latest --http --port 8888
 ```
-
 ### 4. Start the Agent
 
 ```powershell
-pip install -r agent/requirements.txt
+pip install requests python-dotenv google-genai psycopg2-binary
 cd agent
 python agent.py
 ```
 
-### 5. Launch the Dashboard
+### 5. Launch the Dashboards
 
+**HTML Dashboard** (live agent data):
 ```powershell
 cd dashboard
 python -m http.server 4000
 ```
-
 Open `http://localhost:4000` in your browser.
+
+**React Dashboard** (advanced UI with PDF export):
+```powershell
+npm install
+npm run dev
+```
+Open `http://localhost:3000` in your browser.
+
+> **Note**: Always launch from the correct directory. Use `Ctrl+Shift+R` to hard refresh if the browser shows a blank page.
 
 ---
 
@@ -114,13 +122,13 @@ Open `http://localhost:4000` in your browser.
 
 ```bash
 # Inject latency fault
-curl -X POST https://your-api.onrender.com/simulate/latency?seconds=3
+curl -X POST https://sre-gpt-api.onrender.com/simulate/latency?seconds=3
 
-# Inject error fault
-curl -X POST https://your-api.onrender.com/simulate/errors?rate=0.3
+# Inject error fault  
+curl -X POST https://sre-gpt-api.onrender.com/simulate/errors?rate=0.3
 
 # Reset to normal
-curl -X POST https://your-api.onrender.com/simulate/reset
+curl -X POST https://sre-gpt-api.onrender.com/simulate/reset
 ```
 
 Or click **"Simulate Incident"** directly on the dashboard.
