@@ -274,7 +274,7 @@ export default function App() {
       setStatus(mappedStatus);
 
       // Build incident report from agent data when analysis present
-      if (agentAnalysis && agentStatus === 'INCIDENT' && prevAgentStatusRef.current !== 'INCIDENT') {
+      if (agentAnalysis && ( agentStatus === 'INCIDENT' || agentStatus === 'ROLLBACK') && prevAgentStatusRef.current !== 'INCIDENT') {
         const newInc: IncidentReport = {
           id: Date.now().toString(),
           timestamp: agentData.timestamp || new Date().toISOString(),
@@ -286,7 +286,7 @@ export default function App() {
         addLog('ANALYSIS', `Gemini report received: ${agentAction}`);
       }
 
-      if (agentStatus === 'OK' && prevAgentStatusRef.current === 'INCIDENT') {
+      if (agentStatus === 'OK' && ( prevAgentStatusRef.current === 'INCIDENT' || prevAgentStatusRef.current === 'ROLLBACK')) {
         addLog('RESOLVED', 'System returned to operational parameters.');
         setIncident(null);
       }
