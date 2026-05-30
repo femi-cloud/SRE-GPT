@@ -103,7 +103,7 @@ python agent.py
 **HTML Dashboard** (live agent data):
 ```powershell
 cd dashboard
- python cors_server.py 
+python cors_server.py 
 ```
 Open `http://localhost:4000` in your browser.
 
