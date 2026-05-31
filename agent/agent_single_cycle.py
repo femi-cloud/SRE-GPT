@@ -120,10 +120,10 @@ def run_once():
 def update_gist(data: dict):
     """Écrit status.json dans le GitHub Gist public."""
     gist_id = "ffc8dcdfeecde24814ceb6470d738470"
-    token = os.getenv("GITHUB_GIST_TOKEN", "")
+    token = os.getenv("GIST_TOKEN", "")
     
     if not token:
-        print("⚠️  GITHUB_GIST_TOKEN manquant")
+        print("⚠️ GIST_TOKEN manquant")
         return
     
     headers = {
