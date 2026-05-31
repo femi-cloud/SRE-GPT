@@ -122,6 +122,8 @@ def update_gist(data: dict):
     gist_id = "ffc8dcdfeecde24814ceb6470d738470"
     token = os.getenv("GIST_TOKEN", "")
     
+    print(f"DEBUG: GIST_TOKEN présent = {bool(token)}, longueur = {len(token)}")
+    
     if not token:
         print("⚠️ GIST_TOKEN manquant")
         return
