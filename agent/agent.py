@@ -180,18 +180,19 @@ def run():
                    new_metrics["error_rate"] <= config.ALERT_ERROR_RATE:
 
                     print("✅ AUTO-REPAIRED without rollback!")
-                    REPORTER.generate_incident_report(metrics, "AUTO_REPAIR")
-                    write_dashboard(new_metrics, "OK", analysis, "AUTO_REPAIR ✅", davis_insight)
+                    full_report = REPORTER.generate_incident_report(metrics, "AUTO_REPAIR")
+                    write_dashboard(new_metrics, "OK", full_report or analysis, "AUTO_REPAIR ✅", davis_insight)
 
                 else:
                     print("⚠️  Auto-repair insufficient → Rollback...")
                     success = rollback(metrics)
                     action = "ROLLBACK ✅" if success else "ROLLBACK FAILED ❌"
-                    REPORTER.generate_incident_report(metrics, action)
+                    
+                    full_report = REPORTER.generate_incident_report(metrics, action)
                     write_dashboard(
                         new_metrics or metrics,
                         "ROLLBACK",
-                        analysis,
+                        full_report or analysis,
                         action,
                         davis_insight
                     )

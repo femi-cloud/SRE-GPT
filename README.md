@@ -103,9 +103,12 @@ python agent.py
 **HTML Dashboard** (live agent data):
 ```powershell
 cd dashboard
-python cors_server.py 
+python cors_server.py
 ```
 Open `http://localhost:4000` in your browser.
+
+> **Note**: `cors_server.py` is required instead of `python -m http.server` 
+> to allow cross-origin requests from the React dashboard on port 3000.
 
 **React Dashboard** (advanced UI with PDF export):
 ```powershell
@@ -152,6 +155,21 @@ Step 4 — Gemini generates post-mortem report
 ```
 
 ---
+
+### 6. Quick access
+
+Dashboard url - Open https://sre-gpt-dashboard.onrender.com/
+
+### 7. Automated Agent (GitHub Actions)
+
+The agent runs automatically every 5 minutes via GitHub Actions.
+Add these secrets to your GitHub repo (Settings → Secrets):
+- `DT_ENVIRONMENT_URL`
+- `DT_API_TOKEN`
+- `GEMINI_API_KEY`
+- `API_BASE_URL`
+- `RENDER_API_KEY`
+- `RENDER_SERVICE_ID`
 
 ## License
 

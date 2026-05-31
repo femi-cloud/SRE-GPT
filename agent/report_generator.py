@@ -55,6 +55,7 @@ class ReportGenerator:
                 json.dump(report_dict, f, indent=4)
         except Exception:
             pass
+        return report_text
 
     def analyze_only(self, metrics) -> str:
         """Quick root cause analysis without generating a full report."""

@@ -53,7 +53,10 @@ def send_incident_event(title: str, metrics: dict) -> bool:
         "properties": {
             "latency_ms": str(metrics.get("latency_ms", 0)),
             "error_rate": str(metrics.get("error_rate", 0)),
-            "source": "SRE-GPT Agent"
+            "availability": str(metrics.get("availability", 1)),
+            "source": "SRE-GPT Agent",
+            "service": "sre-gpt-api",
+            "environment": "production"
         }
     })
     return result is not None
