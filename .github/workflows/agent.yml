@@ -28,6 +28,7 @@ jobs:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          GITHUB_GIST_TOKEN: ${{ secrets.GITHUB_GIST_TOKEN }}
           ALERT_LATENCY_MS: "1000"
           ALERT_ERROR_RATE: "0.1"
         run: |

@@ -59,10 +59,23 @@ def run_once():
 
     if latency_ok and error_ok and avail_ok:
         print("✅ All normal")
-        write_status(metrics, "OK")
+        update_gist({
+            "timestamp": datetime.datetime.now().isoformat(),
+            "metrics": metrics,
+            "status": "OK",
+            "analysis": "",
+            "action": "",
+            "davis_insight": ""
+        })
         return
 
     print("⚠️  ANOMALY DETECTED")
+
+    # Send to Dynatrace
+    send_dynatrace_event(
+        f"SRE-GPT: Anomaly detected — Latency {metrics['latency_ms']}ms",
+        metrics
+    )
 
     # Gemini analysis
     analysis = REPORTER.analyze_only(metrics)
@@ -77,7 +90,14 @@ def run_once():
             new_metrics = DT_CLIENT.get_metrics()
             if new_metrics and new_metrics["latency_ms"] <= config.ALERT_LATENCY_MS:
                 full_report = REPORTER.generate_incident_report(metrics, "AUTO_REPAIR")
-                write_status(new_metrics, "OK", full_report or analysis, "AUTO_REPAIR ✅")
+                update_gist({
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "metrics": new_metrics,
+                    "status": "OK",
+                    "analysis": full_report or analysis,
+                    "action": "AUTO_REPAIR ✅",
+                    "davis_insight": ""
+                })
                 print("✅ AUTO-REPAIRED")
                 return
     except Exception as e:
@@ -87,8 +107,74 @@ def run_once():
     success = rollback()
     action = "ROLLBACK ✅" if success else "ROLLBACK FAILED ❌"
     full_report = REPORTER.generate_incident_report(metrics, action)
-    write_status(metrics, "ROLLBACK", full_report or analysis, action)
+    update_gist({
+        "timestamp": datetime.datetime.now().isoformat(),
+        "metrics": metrics,
+        "status": "ROLLBACK",
+        "analysis": full_report or analysis,
+        "action": action,
+        "davis_insight": ""
+    })
     print(f"🏁 {action}")
+       
+def update_gist(data: dict):
+    """Écrit status.json dans le GitHub Gist public."""
+    gist_id = "ffc8dcdfeecde24814ceb6470d738470"
+    token = os.getenv("GITHUB_GIST_TOKEN", "")
+    
+    if not token:
+        print("⚠️  GITHUB_GIST_TOKEN manquant")
+        return
+    
+    headers = {
+        "Authorization": f"token {token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "files": {
+            "status.json": {
+                "content": json.dumps(data, indent=2)
+            }
+        }
+    }
+    try:
+        r = requests.patch(
+            f"https://api.github.com/gists/{gist_id}",
+            headers=headers,
+            json=payload,
+            timeout=15
+        )
+        if r.status_code == 200:
+            print("📝 Gist updated ✅")
+        else:
+            print(f"❌ Gist update failed: {r.status_code}")
+    except Exception as e:
+        print(f"❌ Gist error: {e}")
+
+def send_dynatrace_event(title: str, metrics: dict):
+    """Envoie un event directement via l'API REST Dynatrace."""
+    url = f"{os.getenv('DT_ENVIRONMENT_URL', '').rstrip('/')}/api/v2/events/ingest"
+    headers = {
+        "Authorization": f"Api-Token {os.getenv('DT_API_TOKEN', '')}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "eventType": "CUSTOM_ALERT",
+        "title": title,
+        "properties": {
+            "latency_ms": str(metrics.get("latency_ms", 0)),
+            "error_rate": str(metrics.get("error_rate", 0)),
+            "source": "SRE-GPT Agent"
+        }
+    }
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=15)
+        if r.status_code in [200, 201, 204]:
+            print("📡 Event sent to Dynatrace ✅")
+        else:
+            print(f"📡 Dynatrace: {r.status_code} - {r.text[:100]}")
+    except Exception as e:
+        print(f"📡 Dynatrace error: {e}")
 
 if __name__ == "__main__":
     run_once()

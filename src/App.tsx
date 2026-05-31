@@ -10,7 +10,7 @@ import { KpiCard } from './components/KpiCard';
 import { ChartCard } from './components/ChartCard';
 import { SimulationControls } from './components/SimulationControls';
 
-const STATUS_JSON_URL = 'http://localhost:4000/status.json';
+const STATUS_JSON_URL = 'https://gist.githubusercontent.com/femi-cloud/ffc8dcdfeecde24814ceb6470d738470/raw/status.json';
 const FETCH_INTERVAL_MS = 15000;
 
 export default function App() {
@@ -490,7 +490,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <a href="https://sre-gpt-dashboard.onrender.com" className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/45 dark:hover:bg-indigo-900/40 border border-indigo-200/50 dark:border-indigo-500/20 text-indigo-650 dark:text-indigo-400 text-xs cursor-pointer h-9 transition-colors shadow-sm no-underline" title="Switch to Ops Center">
+            <a href="https://sre-gpt-monitor.onrender.com" className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/45 dark:hover:bg-indigo-900/40 border border-indigo-200/50 dark:border-indigo-500/20 text-indigo-650 dark:text-indigo-400 text-xs cursor-pointer h-9 transition-colors shadow-sm no-underline" title="Switch to Ops Center">
               <Server size={14} className="text-indigo-600 dark:text-indigo-400" />
               <span>{lang === 'en' ? 'Ops Center' : 'Centre Ops'}</span>
             </a>
