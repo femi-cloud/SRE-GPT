@@ -49,9 +49,9 @@ class ReportGenerator:
             "analysis": report_text
         }
 
-        os.makedirs("../dashboard", exist_ok=True)
+        os.makedirs("../public", exist_ok=True)
         try:
-            with open("../dashboard/status.json", "w") as f:
+            with open("../public/status.json", "w") as f:
                 json.dump(report_dict, f, indent=4)
         except Exception:
             pass

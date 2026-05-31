@@ -16,8 +16,8 @@ RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
 RENDER_SERVICE_ID = os.getenv("RENDER_SERVICE_ID", "")
 
 def write_dashboard(metrics, status, analysis="", action="", davis_insight=""):
-    """Writes the state to dashboard/status.json."""
-    os.makedirs("../dashboard", exist_ok=True)
+    """Writes the state to public/status.json."""
+    os.makedirs("../public", exist_ok=True)
     out = {
         "timestamp": datetime.datetime.now().isoformat(),
         "metrics": metrics,
@@ -26,7 +26,7 @@ def write_dashboard(metrics, status, analysis="", action="", davis_insight=""):
         "action": action,
         "davis_insight": davis_insight
     }
-    with open("../dashboard/status.json", "w") as f:
+    with open("../public/status.json", "w") as f:
         json.dump(out, f, indent=4)
     print(f"[Dashboard] Updated → {status}")
 

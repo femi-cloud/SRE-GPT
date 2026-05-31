@@ -571,7 +571,7 @@
 
   async function fetchStatus() {
     try {
-      const r = await fetch('status.json?rnd=' + new Date().getTime());
+      const r = await fetch('https://gist.githubusercontent.com/femi-cloud/ffc8dcdfeecde24814ceb6470d738470/raw/status.json?rnd=' + new Date().getTime());
       if (!r.ok) return;
       const data = await r.json();
       lastUpdateTs = Date.now();
