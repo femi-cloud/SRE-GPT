@@ -241,7 +241,9 @@ export default function App() {
 
   const fetchAgentStatus = async () => {
     try {
-      const r = await fetch(`${STATUS_JSON_URL}?rnd=${Date.now()}`);
+      const r = await fetch(`${STATUS_JSON_URL}?t=${Date.now()}`, {
+          cache: 'no-store'
+      });
       if (!r.ok) throw new Error('not ok');
       const agentData = await r.json();
 

@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+from datetime import datetime
 from google import genai
 from config import GEMINI_API_KEY
 

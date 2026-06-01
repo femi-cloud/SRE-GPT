@@ -155,7 +155,7 @@ def update_gist(data: dict):
 
 def send_dynatrace_event(title: str, metrics: dict):
     """Envoie un event directement via l'API REST Dynatrace."""
-    url = f"{os.getenv('DT_ENVIRONMENT_URL', '').rstrip('/')}/api/v2/events/ingest"
+    url = "https://ntt93614.live.dynatrace.com/api/v2/events/ingest"
     headers = {
         "Authorization": f"Api-Token {os.getenv('DT_API_TOKEN', '')}",
         "Content-Type": "application/json"
