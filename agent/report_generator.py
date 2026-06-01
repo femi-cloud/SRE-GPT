@@ -13,15 +13,27 @@ class ReportGenerator:
 
     def generate_incident_report(self, metrics, action_taken):
         """Produces an SRE 'Post-mortem' diagnostic and saves it as text in the dashboard."""
+        from datetime import datetime
+
         prompt = f"""
         As an autonomous Site Reliability Engineer (SRE), write a Post-Mortem.
+
+        IMPORTANT: Use this exact incident date and time: {datetime.utcnow().strftime('%Y-%m-%d at %H:%M UTC')}
+        Do NOT invent or use any other date. The incident happened RIGHT NOW at the time above.
+
         The incident:
         - Latency: {metrics.get('latency_ms')} ms
         - Errors: {metrics.get('error_rate') * 100}%
+        - Availability: {metrics.get('availability', 1.0) * 100}%
 
         The automatic action executed by the agent: {action_taken}
 
-        Generate: (1) Quick summary, (2) Probable root cause, (3) Explanation of the rollback action. Be technical but clear.
+        Generate:
+        (1) Quick Summary — include the EXACT date and time provided above
+        (2) Probable Root Cause — technical analysis
+        (3) Explanation of the remediation action
+
+        Be technical but clear. Use the real date provided, never a fictional one.
         """
 
         report_text = ""
