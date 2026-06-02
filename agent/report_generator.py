@@ -17,7 +17,7 @@ class ReportGenerator:
         prompt = f"""
         As an autonomous Site Reliability Engineer (SRE), write a Post-Mortem.
 
-        IMPORTANT: Use this exact incident date and time: {datetime.now(datetime.UTC).strftime('%Y-%m-%d at %H:%M UTC')}
+        IMPORTANT: Use this exact incident date and time: {datetime.utcnow().strftime('%Y-%m-%d at %H:%M UTC')}
         Do NOT invent or use any other date. The incident happened RIGHT NOW at the time above.
 
         The incident:
