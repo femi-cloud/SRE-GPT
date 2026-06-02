@@ -13,12 +13,11 @@ class ReportGenerator:
 
     def generate_incident_report(self, metrics, action_taken):
         """Produces an SRE 'Post-mortem' diagnostic and saves it as text in the dashboard."""
-        from datetime import datetime
 
         prompt = f"""
         As an autonomous Site Reliability Engineer (SRE), write a Post-Mortem.
 
-        IMPORTANT: Use this exact incident date and time: {datetime.utcnow().strftime('%Y-%m-%d at %H:%M UTC')}
+        IMPORTANT: Use this exact incident date and time: {datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d at %H:%M UTC')}
         Do NOT invent or use any other date. The incident happened RIGHT NOW at the time above.
 
         The incident:
@@ -55,7 +54,7 @@ class ReportGenerator:
 
         # Log programmatically for the Dashboard
         report_dict = {
-            "timestamp": datetime.datetime.now().isoformat(),
+            "timestamp": datetime.now().isoformat(),
             "metrics": metrics,
             "action": action_taken,
             "analysis": report_text

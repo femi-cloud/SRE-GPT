@@ -479,7 +479,11 @@
   function addTimelineEvent(status, m) {
     const feed = JSON.parse(localStorage.getItem('sre_timeline') || '[]');
     const lastEvent = feed[feed.length - 1];
-    if(lastEvent && lastEvent.status === status && status === "OK") return;
+    // For OK: only skip if last OK was less than 30s ago — keeps the feed live without spam
+    if (lastEvent && lastEvent.status === status && status === "OK") {
+      const lastTs = new Date(lastEvent.time).getTime();
+      if (Date.now() - lastTs < 30000) return;
+    }
 
     feed.push({
       status, 
@@ -605,16 +609,20 @@
       const prevStatus = currentStatus;
       currentStatus = data.status;
 
-      if (currentStatus === "INCIDENT") {
+      // Normalize: treat AUTO_REPAIRED same as ROLLBACK (mitigated), anything not OK/INCIDENT = resolve
+      const isIncident = currentStatus === "INCIDENT";
+      const isMitigated = currentStatus === "ROLLBACK" || currentStatus === "AUTO_REPAIRED";
+
+      if (isIncident) {
         document.body.classList.add('incident-mode');
         if (prevStatus !== "INCIDENT") addTimelineEvent("INCIDENT", m);
       } else {
         document.body.classList.remove('incident-mode');
-        if (prevStatus === "INCIDENT") {
+        if (prevStatus === "INCIDENT" || prevStatus === "ROLLBACK" || prevStatus === "AUTO_REPAIRED") {
           addTimelineEvent("RESOLVED", m);
           incrementRollback();
           startCooldown();
-          if (data.action) appendLog("ROLLBACK", data.action);
+          if (data.action || data.last_action) appendLog("ROLLBACK", data.action || data.last_action);
         } else {
           addTimelineEvent("OK", m);
         }
@@ -622,23 +630,24 @@
 
       const aiCard = document.getElementById('ai-report-card');
       const aiContent = document.getElementById('ai-report-content');
-      if (data.analysis) {
+      // Read both field names: agent writes "analysis", corrected agent also writes "report"
+      const reportText = data.report || data.analysis || '';
+      if (reportText && reportText.trim().length > 20) {
         if (aiCard.classList.contains('hidden')) {
            aiCard.classList.remove('hidden');
            aiCard.classList.add('slide-in');
            appendLog("ANALYSIS", translate('receivedGeminiReport'));
         }
-        
-        let formatted = data.analysis.replace(/^\*\s|^\-\s|^\*/gm, "• ")
+        // Persist report text in localStorage so it survives status rewrites
+        localStorage.setItem('sre_last_report', reportText);
+        let formatted = reportText.replace(/^\*\s|^\-\s|^\*/gm, "• ")
                                      .replace(/Root cause:/i, `<div class='text-white font-bold my-2 text-[15px]'>${currentLang === 'fr' ? 'Cause racine :' : 'Root cause:'}</div>`)
                                      .replace(/Action:/i, `<div class='text-white font-bold my-2 mt-4 text-[15px]'>${currentLang === 'fr' ? 'Action :' : 'Action:'}</div>`)
                                      .replace(/\n/g, "<br>");
         const confidence = `<div class='mb-4 font-mono text-xs opacity-70'>${translate('confidence')}: <span class='text-emerald-400 font-bold'>98.4%</span></div>`;
-        
         aiContent.innerHTML = confidence + formatted;
-      } else {
-        aiCard.classList.add('hidden');
       }
+      // KEY FIX: never hide the report card once shown — it persists until page reload
 
     } catch(e) {
       console.log("Fetch failed", e);
@@ -718,6 +727,22 @@
     updateUILanguage();
     renderTimeline();
     renderLogs();
+
+    // Restore last report from localStorage so it survives page refresh + Gist rewrites
+    const savedReport = localStorage.getItem('sre_last_report');
+    if (savedReport && savedReport.trim().length > 20) {
+      const aiCard = document.getElementById('ai-report-card');
+      const aiContent = document.getElementById('ai-report-content');
+      if (aiCard && aiContent) {
+        aiCard.classList.remove('hidden');
+        let formatted = savedReport.replace(/^\*\s|^\-\s|^\*/gm, "• ")
+          .replace(/Root cause:/i, "<div class='text-white font-bold my-2 text-[15px]'>Root cause:</div>")
+          .replace(/Action:/i, "<div class='text-white font-bold my-2 mt-4 text-[15px]'>Action:</div>")
+          .replace(/\n/g, "<br>");
+        const badge = `<div class='mb-4 font-mono text-xs opacity-70'>confidence: <span class='text-emerald-400 font-bold'>98.4%</span> &nbsp;·&nbsp; <span class='text-amber-400'>restored from cache</span></div>`;
+        aiContent.innerHTML = badge + formatted;
+      }
+    }
     
     if (localStorage.getItem('sre_logs') === null) {
       appendLog("INFO", translate('activeStandBy'));
