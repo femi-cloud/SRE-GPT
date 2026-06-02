@@ -163,6 +163,15 @@ export default function App() {
   const getLocalizedIncident = (inc: IncidentReport | null, currentLang: 'en' | 'fr'): IncidentReport | null => {
     if (!inc) return null;
     if (currentLang === 'en') return inc;
+    // Pour les rapports live de l'agent (qui ne matchent pas les clés de simulation), retourner tel quel
+    const simKeys = [
+      "Container Auto-Scaling Triggered",
+      "Horizontal Replication Scale Up",
+      "Automated Canary Rollback",
+      "Gateway Outage Protection Redirect"
+    ];
+    const isSimReport = simKeys.some(k => inc.action.includes(k));
+    if (!isSimReport) return inc; // rapport live → pas de traduction forcée
     const translations: Record<string, { actionFr: string; analysisFr: string }> = {
       "Container Auto-Scaling Triggered (GCP Cloud Run)": {
         actionFr: "Démarrage d'Auto-Scaling (GCP Cloud Run)",
@@ -238,6 +247,24 @@ export default function App() {
   // LIVE FETCH from agent status.json
   // ─────────────────────────────────────────────────────────────
   const prevAgentStatusRef = useRef<string>('');
+  const lastReportKeyRef   = useRef<string>('');
+
+  // Compteur de rollbacks (persisté)
+  const [rollbackCount, setRollbackCount] = useState<number>(() => {
+    return parseInt(localStorage.getItem('sre_rollbacks_react') || '0');
+  });
+
+  // Restaurer le dernier rapport au chargement de page
+  useEffect(() => {
+    const saved = localStorage.getItem('sre_last_incident');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as IncidentReport;
+        setIncident(parsed);
+        lastReportKeyRef.current = parsed.timestamp || parsed.id;
+      } catch { /* ignore */ }
+    }
+  }, []);
 
   const fetchAgentStatus = async () => {
     try {
@@ -251,50 +278,65 @@ export default function App() {
       setAgentLive(true);
       setAgentMode('live');
 
-      const m = agentData.metrics;
-      const agentStatus: string = agentData.status; // "OK" | "INCIDENT" | "ROLLBACK"
-      const agentAnalysis: string = agentData.analysis || '';
-      const agentAction: string = agentData.action || '';
+      const m = agentData.metrics || {};
+      // Agent écrit: status, analysis (ou report), action (ou last_action)
+      const agentStatus: string = (agentData.status || 'OK').toUpperCase();
+      const agentAnalysis: string = agentData.report || agentData.analysis || '';
+      const agentAction: string   = agentData.last_action || agentData.action || '';
 
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const statusCode = agentStatus === 'INCIDENT' ? 2 : (agentStatus === 'ROLLBACK' ? 1 : 0);
+
+      // Mapping statuts → UI
+      const isIncident  = agentStatus === 'INCIDENT';
+      const isMitigated = agentStatus === 'ROLLBACK' || agentStatus === 'AUTO_REPAIRED';
       const mappedStatus: 'OK' | 'INCIDENT' | 'COOLDOWN' =
-        agentStatus === 'INCIDENT' ? 'INCIDENT' :
-        agentStatus === 'ROLLBACK' ? 'COOLDOWN' : 'OK';
+        isIncident  ? 'INCIDENT' :
+        isMitigated ? 'COOLDOWN' : 'OK';
+      const statusCode = isIncident ? 2 : isMitigated ? 1 : 0;
 
-      setData(prev => {
-        const newData = [...prev.slice(-19), {
-          time: timeStr,
-          latency_ms: m.latency_ms,
-          error_rate: m.error_rate,
-          availability: m.availability,
-          status_code: statusCode,
-        }];
-        return newData;
-      });
+      // Normalise les champs métriques (latency_ms ou avg_latency_ms, etc.)
+      const latency_ms   = m.latency_ms   ?? m.avg_latency_ms   ?? 0;
+      const error_rate   = m.error_rate   ?? (m.error_rate_pct   != null ? m.error_rate_pct / 100 : 0);
+      const availability = m.availability ?? (m.availability_pct != null ? m.availability_pct / 100 : 1);
 
+      setData(prev => [...prev.slice(-19), { time: timeStr, latency_ms, error_rate, availability, status_code: statusCode }]);
       setStatus(mappedStatus);
 
-      // Build incident report from agent data when analysis present
-      if (agentAnalysis && ( agentStatus === 'INCIDENT' || agentStatus === 'ROLLBACK') && prevAgentStatusRef.current !== 'INCIDENT') {
-        const newInc: IncidentReport = {
-          id: Date.now().toString(),
-          timestamp: agentData.timestamp || new Date().toISOString(),
-          action: agentAction || 'SRE-GPT Auto-Remediation',
-          analysis: agentAnalysis,
-        };
-        setIncident(newInc);
-        addIncident(newInc);
-        addLog('ANALYSIS', `Gemini report received: ${agentAction}`);
+      // ── Incrémenter le compteur de rollbacks ──────────────────────────
+      if (isMitigated && prevAgentStatusRef.current !== 'ROLLBACK' && prevAgentStatusRef.current !== 'AUTO_REPAIRED') {
+        setRollbackCount(prev => {
+          const next = prev + 1;
+          localStorage.setItem('sre_rollbacks_react', String(next));
+          return next;
+        });
+        addLog('ROLLBACK', `Remediation: ${agentAction || agentStatus}`);
       }
 
-      if (agentStatus === 'OK' && ( prevAgentStatusRef.current === 'INCIDENT' || prevAgentStatusRef.current === 'ROLLBACK')) {
-        addLog('RESOLVED', 'System returned to operational parameters.');
-        setIncident(null);
+      // ── Afficher le rapport Gemini ────────────────────────────────────
+      // Condition: rapport présent ET (incident ou mitigation) ET pas déjà le même rapport
+      const reportKey = agentData.timestamp || agentAction;
+      if (agentAnalysis.trim().length > 20 && (isIncident || isMitigated)) {
+        if (reportKey !== lastReportKeyRef.current) {
+          lastReportKeyRef.current = reportKey;
+          const newInc: IncidentReport = {
+            id: agentData.timestamp || Date.now().toString(),
+            timestamp: agentData.timestamp || new Date().toISOString(),
+            action: agentAction || agentStatus,
+            analysis: agentAnalysis,
+          };
+          // Mettre à jour le rapport courant ET la liste
+          setIncident(newInc);
+          addIncident(newInc);
+          // Persister pour survie au refresh
+          localStorage.setItem('sre_last_incident', JSON.stringify(newInc));
+          addLog('ANALYSIS', `Gemini post-mortem received: ${agentAction || agentStatus}`);
+        }
       }
 
-      if (agentStatus === 'ROLLBACK') {
-        addLog('ROLLBACK', `Action: ${agentAction}`);
+      // ── Recovery: log mais NE PAS effacer le rapport ─────────────────
+      if (mappedStatus === 'OK' && (prevAgentStatusRef.current === 'INCIDENT' || prevAgentStatusRef.current === 'ROLLBACK' || prevAgentStatusRef.current === 'AUTO_REPAIRED')) {
+        addLog('RESOLVED', 'System returned to operational parameters. Last post-mortem preserved.');
+        // setIncident(null) intentionnellement absent — le rapport reste visible
       }
 
       prevAgentStatusRef.current = agentStatus;
@@ -506,6 +548,15 @@ export default function App() {
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${agentMode === 'live' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'}`}>
                 {agentMode === 'live' ? t.modeLive : t.modeSim}
               </span>
+            </div>
+
+            {/* Rollback Counter */}
+            <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-500/30 px-3 py-1.5 rounded-xl shadow-sm h-9">
+              <span className="text-[10px] font-bold text-purple-500 dark:text-purple-400 uppercase tracking-wider">Rollbacks</span>
+              <span className="text-sm font-black text-purple-600 dark:text-purple-300 font-mono">{rollbackCount}</span>
+              {rollbackCount > 0 && (
+                <button onClick={() => { setRollbackCount(0); localStorage.setItem('sre_rollbacks_react', '0'); }} className="text-[9px] text-purple-400 hover:text-purple-600 cursor-pointer ml-1" title="Reset counter">↺</button>
+              )}
             </div>
 
             {/* System Status Badge */}
