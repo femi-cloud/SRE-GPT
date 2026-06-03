@@ -482,15 +482,16 @@
     container.scrollTop = container.scrollHeight;
   }
 
-  function addTimelineEvent(status, m) {
+  function addTimelineEvent(status, m, gistTs) {
     const feed = JSON.parse(localStorage.getItem('sre_timeline') || '[]');
     feed.push({
       status,
       ms: m.latency_ms,
       err: m.error_rate,
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
+      gistTs: gistTs || ''
     });
-    if (feed.length > 20) feed.shift();
+    if (feed.length > 30) feed.shift();
     localStorage.setItem('sre_timeline', JSON.stringify(feed));
     renderTimeline();
     
@@ -632,25 +633,35 @@
       const isIncident  = currentStatus === 'INCIDENT';
       const isMitigated = currentStatus === 'ROLLBACK' || currentStatus === 'AUTO_REPAIRED';
 
-      if (isIncident) {
-        document.body.classList.add('incident-mode');
-        addTimelineEvent('INCIDENT', m);
+      // Clé : on ne crée des events que si ce gistTs n'a pas encore été enregistré dans le feed
+      const feed = JSON.parse(localStorage.getItem('sre_timeline') || '[]');
+      const alreadyRecorded = gistTs && feed.some(e => e.gistTs === gistTs);
 
-      } else if (isMitigated) {
-        document.body.classList.remove('incident-mode');
-        // L'agent a réparé : insérer INCIDENT synthétique pour montrer ce qui s'est passé,
-        // puis RESOLVED — reconstruire la séquence que le dashboard n'a pas vue en direct
-        addTimelineEvent('INCIDENT', m);
-        incrementRollback();
-        startCooldown();
-        const actionLabel = data.last_action || data.action || currentStatus;
-        if (actionLabel) appendLog('ROLLBACK', actionLabel);
-        addTimelineEvent('RESOLVED', m);
+      if (!alreadyRecorded) {
+        if (isIncident) {
+          document.body.classList.add('incident-mode');
+          addTimelineEvent('INCIDENT', m, gistTs);
 
+        } else if (isMitigated) {
+          document.body.classList.remove('incident-mode');
+          // Reconstruire la séquence : INCIDENT (métriques pré-réparation si dispo) + RESOLVED
+          const preMetrics = data.incident_metrics || data.metrics;
+          addTimelineEvent('INCIDENT', preMetrics, gistTs);
+          incrementRollback();
+          startCooldown();
+          const actionLabel = data.last_action || data.action || currentStatus;
+          if (actionLabel) appendLog('ROLLBACK', actionLabel);
+          addTimelineEvent('RESOLVED', m, gistTs);
+
+        } else {
+          // OK
+          document.body.classList.remove('incident-mode');
+          addTimelineEvent('OK', m, gistTs);
+        }
       } else {
-        // OK
-        document.body.classList.remove('incident-mode');
-        addTimelineEvent('OK', m);
+        // Cycle déjà enregistré — juste sync le body class
+        if (isIncident) document.body.classList.add('incident-mode');
+        else document.body.classList.remove('incident-mode');
       }
 
       // ── Rapport Gemini ─────────────────────────────────────────────────
@@ -756,6 +767,14 @@
     updateUILanguage();
     renderTimeline();
     renderLogs();
+
+    // Migrer l'ancien feed sans gistTs — vider pour repartir propre
+    const oldFeed = JSON.parse(localStorage.getItem('sre_timeline') || '[]');
+    if (oldFeed.length > 0 && !oldFeed[0].hasOwnProperty('gistTs')) {
+      localStorage.removeItem('sre_timeline');
+      localStorage.removeItem('sre_last_gist_ts');
+      renderTimeline();
+    }
 
     // Restaurer le dernier rapport Gemini (survie aux refresh + rewrites Gist)
     const savedReport = localStorage.getItem('sre_last_report');
