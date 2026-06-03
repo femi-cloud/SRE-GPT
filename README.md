@@ -158,7 +158,7 @@ Step 4 — Gemini generates post-mortem report
 
 ### 6. Quick access
 
-Dashboard url - Open https://sre-gpt-dashboard.onrender.com/
+Dashboard url - Open [https://sre-gpt.onrender.com/](https://sre-gpt.onrender.com/)
 
 ### 7. Automated Agent (GitHub Actions)
 
