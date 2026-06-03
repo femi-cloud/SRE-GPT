@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from google import genai
 from config import GEMINI_API_KEY
 
@@ -17,7 +17,7 @@ class ReportGenerator:
         prompt = f"""
         As an autonomous Site Reliability Engineer (SRE), write a Post-Mortem.
 
-        IMPORTANT: Use this exact incident date and time: {datetime.utcnow().strftime('%Y-%m-%d at %H:%M UTC')}
+        IMPORTANT: Use this exact incident date and time: {datetime.now(timezone.utc).strftime('%Y-%m-%d at %H:%M UTC')}
         Do NOT invent or use any other date. The incident happened RIGHT NOW at the time above.
 
         The incident:
@@ -54,7 +54,7 @@ class ReportGenerator:
 
         # Log programmatically for the Dashboard
         report_dict = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metrics": metrics,
             "action": action_taken,
             "analysis": report_text
