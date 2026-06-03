@@ -249,6 +249,12 @@
   let cooldownInterval = null;
   const HISTORY_LEN = 20;
 
+  // Dernier timestamp du Gist traité — persiste entre page loads
+  // Empêche de créer des events dupliqués à chaque poll
+  let lastProcessedGistTs = localStorage.getItem('sre_last_gist_ts') || '';
+  // Restaurer le statut courant pour ne pas perdre la mémoire au refresh
+  currentStatus = localStorage.getItem('sre_current_status') || 'OK';
+
   // Translation configuration
   let currentLang = localStorage.getItem('sre_lang') || 'en';
 
@@ -478,16 +484,13 @@
 
   function addTimelineEvent(status, m) {
     const feed = JSON.parse(localStorage.getItem('sre_timeline') || '[]');
-    const lastEvent = feed[feed.length - 1];
-    if(lastEvent && lastEvent.status === status && status === "OK") return;
-
     feed.push({
-      status, 
-      ms: m.latency_ms, 
-      err: m.error_rate, 
+      status,
+      ms: m.latency_ms,
+      err: m.error_rate,
       time: new Date().toISOString()
     });
-    if(feed.length > 15) feed.shift();
+    if (feed.length > 20) feed.shift();
     localStorage.setItem('sre_timeline', JSON.stringify(feed));
     renderTimeline();
     
@@ -575,6 +578,26 @@
       if (!r.ok) return;
       const data = await r.json();
       lastUpdateTs = Date.now();
+
+      // ── Dédup : ignorer si ce cycle d'agent a déjà été traité ──────────
+      const gistTs = data.timestamp || '';
+      if (gistTs && gistTs === lastProcessedGistTs) {
+        // Même cycle — on met juste à jour les KPI visuels sans créer d'events
+        const m = data.metrics;
+        if (m) {
+          const elLat = document.getElementById('val-latency');
+          const elErr = document.getElementById('val-error');
+          const elAv  = document.getElementById('val-avail');
+          animateValue(elLat, parseFloat(elLat.innerText)||0, m.latency_ms, 800, v => `${v.toFixed(0)} <span class="text-lg text-gray-500 font-sans">ms</span>`);
+          animateValue(elErr, parseFloat(elErr.innerText)||0, m.error_rate*100, 800, v => `${v.toFixed(1)}<span class="text-lg text-gray-500 font-sans">%</span>`);
+          animateValue(elAv,  parseFloat(elAv.innerText)||100, m.availability*100, 800, v => `${v.toFixed(1)}<span class="text-lg text-gray-500 font-sans">%</span>`);
+          updateCharts(m);
+        }
+        return; // ← rien d'autre à faire
+      }
+      // Nouveau cycle d'agent → traiter et mémoriser
+      lastProcessedGistTs = gistTs;
+      if (gistTs) localStorage.setItem('sre_last_gist_ts', gistTs);
       
       const m = data.metrics;
       
@@ -604,51 +627,30 @@
 
       const prevStatus = currentStatus;
       currentStatus = (data.status || 'OK').toUpperCase();
+      localStorage.setItem('sre_current_status', currentStatus);
 
       const isIncident  = currentStatus === 'INCIDENT';
       const isMitigated = currentStatus === 'ROLLBACK' || currentStatus === 'AUTO_REPAIRED';
 
-      // ── Clé du problème ───────────────────────────────────────────────
-      // L'agent cycle toutes les 5 min. Le dashboard poll toutes les 15s.
-      // Quand le dashboard poll, l'agent a souvent DÉJÀ réparé → status=AUTO_REPAIRED.
-      // Le dashboard ne voit donc jamais status=INCIDENT.
-      // Fix : on lit les MÉTRIQUES pour détecter l'anomalie, peu importe le status.
-      const metricsAnomaly = m.latency_ms > 1000 || m.error_rate > 0.1 || m.availability < 0.95;
-
       if (isIncident) {
-        // Cas normal : agent écrit INCIDENT
         document.body.classList.add('incident-mode');
-        if (prevStatus !== 'INCIDENT') addTimelineEvent('INCIDENT', m);
+        addTimelineEvent('INCIDENT', m);
 
       } else if (isMitigated) {
-        // Agent a déjà réparé : on insère INCIDENT + RESOLVED pour reconstruire la séquence
         document.body.classList.remove('incident-mode');
-        if (prevStatus !== 'ROLLBACK' && prevStatus !== 'AUTO_REPAIRED') {
-          addTimelineEvent('INCIDENT', m);  // ← événement rouge synthétique
-          incrementRollback();
-          startCooldown();
-          const actionLabel = data.last_action || data.action || currentStatus;
-          appendLog('ROLLBACK', actionLabel);
-          addTimelineEvent('RESOLVED', m);
-        }
+        // L'agent a réparé : insérer INCIDENT synthétique pour montrer ce qui s'est passé,
+        // puis RESOLVED — reconstruire la séquence que le dashboard n'a pas vue en direct
+        addTimelineEvent('INCIDENT', m);
+        incrementRollback();
+        startCooldown();
+        const actionLabel = data.last_action || data.action || currentStatus;
+        if (actionLabel) appendLog('ROLLBACK', actionLabel);
+        addTimelineEvent('RESOLVED', m);
 
       } else {
-        // STATUS = OK
+        // OK
         document.body.classList.remove('incident-mode');
-        if (prevStatus === 'INCIDENT' || prevStatus === 'ROLLBACK' || prevStatus === 'AUTO_REPAIRED') {
-          addTimelineEvent('RESOLVED', m);
-        } else if (metricsAnomaly) {
-          // Métriques anormales MAIS status déjà OK → agent a réparé entre deux cycles
-          // On reconstruit la séquence INCIDENT → RESOLVED
-          addTimelineEvent('INCIDENT', m);
-          addTimelineEvent('RESOLVED', m);
-          incrementRollback();
-          startCooldown();
-          const actionLabel = data.last_action || data.action || 'AUTO_REPAIRED';
-          if (actionLabel) appendLog('ROLLBACK', actionLabel);
-        } else {
-          addTimelineEvent('OK', m);
-        }
+        addTimelineEvent('OK', m);
       }
 
       // ── Rapport Gemini ─────────────────────────────────────────────────
