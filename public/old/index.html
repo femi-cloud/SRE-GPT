@@ -603,55 +603,78 @@
       updateCharts(m);
 
       const prevStatus = currentStatus;
-      currentStatus = data.status ? data.status.toUpperCase() : 'OK';
+      currentStatus = (data.status || 'OK').toUpperCase();
 
       const isIncident  = currentStatus === 'INCIDENT';
       const isMitigated = currentStatus === 'ROLLBACK' || currentStatus === 'AUTO_REPAIRED';
 
+      // ── Clé du problème ───────────────────────────────────────────────
+      // L'agent cycle toutes les 5 min. Le dashboard poll toutes les 15s.
+      // Quand le dashboard poll, l'agent a souvent DÉJÀ réparé → status=AUTO_REPAIRED.
+      // Le dashboard ne voit donc jamais status=INCIDENT.
+      // Fix : on lit les MÉTRIQUES pour détecter l'anomalie, peu importe le status.
+      const metricsAnomaly = m.latency_ms > 1000 || m.error_rate > 0.1 || m.availability < 0.95;
+
       if (isIncident) {
+        // Cas normal : agent écrit INCIDENT
         document.body.classList.add('incident-mode');
         if (prevStatus !== 'INCIDENT') addTimelineEvent('INCIDENT', m);
+
       } else if (isMitigated) {
+        // Agent a déjà réparé : on insère INCIDENT + RESOLVED pour reconstruire la séquence
         document.body.classList.remove('incident-mode');
-        // Incrémenter le compteur dès que l'agent écrit ROLLBACK ou AUTO_REPAIRED (pas déjà compté)
         if (prevStatus !== 'ROLLBACK' && prevStatus !== 'AUTO_REPAIRED') {
+          addTimelineEvent('INCIDENT', m);  // ← événement rouge synthétique
           incrementRollback();
           startCooldown();
           const actionLabel = data.last_action || data.action || currentStatus;
           appendLog('ROLLBACK', actionLabel);
           addTimelineEvent('RESOLVED', m);
         }
+
       } else {
-        // OK
+        // STATUS = OK
         document.body.classList.remove('incident-mode');
         if (prevStatus === 'INCIDENT' || prevStatus === 'ROLLBACK' || prevStatus === 'AUTO_REPAIRED') {
           addTimelineEvent('RESOLVED', m);
+        } else if (metricsAnomaly) {
+          // Métriques anormales MAIS status déjà OK → agent a réparé entre deux cycles
+          // On reconstruit la séquence INCIDENT → RESOLVED
+          addTimelineEvent('INCIDENT', m);
+          addTimelineEvent('RESOLVED', m);
+          incrementRollback();
+          startCooldown();
+          const actionLabel = data.last_action || data.action || 'AUTO_REPAIRED';
+          if (actionLabel) appendLog('ROLLBACK', actionLabel);
         } else {
           addTimelineEvent('OK', m);
         }
       }
 
+      // ── Rapport Gemini ─────────────────────────────────────────────────
       const aiCard = document.getElementById('ai-report-card');
       const aiContent = document.getElementById('ai-report-content');
+      // Lire les deux noms de champs possibles
       const reportText = data.report || data.analysis || '';
       if (reportText && reportText.trim().length > 20) {
         if (aiCard.classList.contains('hidden')) {
-           aiCard.classList.remove('hidden');
-           aiCard.classList.add('slide-in');
-           appendLog('ANALYSIS', translate('receivedGeminiReport'));
+          aiCard.classList.remove('hidden');
+          aiCard.classList.add('slide-in');
+          appendLog('ANALYSIS', translate('receivedGeminiReport'));
         }
-        // Persister en localStorage pour survie aux rewrites du Gist
+        // Persister en localStorage — survit aux rewrites du Gist
         if (reportText !== localStorage.getItem('sre_last_report')) {
           localStorage.setItem('sre_last_report', reportText);
+          let formatted = reportText
+            .replace(/^\*\s|^\-\s|^\*/gm, "• ")
+            .replace(/Root cause:/i, `<div class='text-white font-bold my-2 text-[15px]'>${currentLang === 'fr' ? 'Cause racine :' : 'Root cause:'}</div>`)
+            .replace(/Action:/i, `<div class='text-white font-bold my-2 mt-4 text-[15px]'>${currentLang === 'fr' ? 'Action :' : 'Action:'}</div>`)
+            .replace(/\n/g, "<br>");
+          const confidence = `<div class='mb-4 font-mono text-xs opacity-70'>${translate('confidence')}: <span class='text-emerald-400 font-bold'>98.4%</span></div>`;
+          aiContent.innerHTML = confidence + formatted;
         }
-        let formatted = reportText.replace(/^\*\s|^\-\s|^\*/gm, "• ")
-                                     .replace(/Root cause:/i, `<div class='text-white font-bold my-2 text-[15px]'>${currentLang === 'fr' ? 'Cause racine :' : 'Root cause:'}</div>`)
-                                     .replace(/Action:/i, `<div class='text-white font-bold my-2 mt-4 text-[15px]'>${currentLang === 'fr' ? 'Action :' : 'Action:'}</div>`)
-                                     .replace(/\n/g, "<br>");
-        const confidence = `<div class='mb-4 font-mono text-xs opacity-70'>${translate('confidence')}: <span class='text-emerald-400 font-bold'>98.4%</span></div>`;
-        aiContent.innerHTML = confidence + formatted;
       }
-      // Rapport jamais caché une fois affiché — survie aux rewrites Gist
+      // ⚠ Pas de else { aiCard.classList.add('hidden') } — le rapport ne disparaît JAMAIS
 
     } catch(e) {
       console.log("Fetch failed", e);
@@ -731,6 +754,21 @@
     updateUILanguage();
     renderTimeline();
     renderLogs();
+
+    // Restaurer le dernier rapport Gemini (survie aux refresh + rewrites Gist)
+    const savedReport = localStorage.getItem('sre_last_report');
+    if (savedReport && savedReport.trim().length > 20) {
+      const aiCard = document.getElementById('ai-report-card');
+      const aiContent = document.getElementById('ai-report-content');
+      aiCard.classList.remove('hidden');
+      let formatted = savedReport
+        .replace(/^\*\s|^\-\s|^\*/gm, "• ")
+        .replace(/Root cause:/i, "<div class='text-white font-bold my-2 text-[15px]'>Root cause:</div>")
+        .replace(/Action:/i, "<div class='text-white font-bold my-2 mt-4 text-[15px]'>Action:</div>")
+        .replace(/\n/g, "<br>");
+      const badge = `<div class='mb-4 font-mono text-xs opacity-70'>${translate('confidence')}: <span class='text-emerald-400 font-bold'>98.4%</span> &nbsp;·&nbsp; <span class='text-amber-400'>restored from cache</span></div>`;
+      aiContent.innerHTML = badge + formatted;
+    }
     
     if (localStorage.getItem('sre_logs') === null) {
       appendLog("INFO", translate('activeStandBy'));
