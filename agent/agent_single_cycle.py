@@ -60,7 +60,7 @@ def run_once():
     if latency_ok and error_ok and avail_ok:
         print("✅ All normal")
         update_gist({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "metrics": metrics,
             "status": "OK",
             "analysis": "",
@@ -93,7 +93,7 @@ def run_once():
             if new_metrics and new_metrics["latency_ms"] <= config.ALERT_LATENCY_MS:
                 full_report = REPORTER.generate_incident_report(metrics, "AUTO_REPAIR")
                 update_gist({
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     "metrics": new_metrics,
                     "status": "AUTO_REPAIRED",
                     "analysis": full_report or analysis,
@@ -112,7 +112,7 @@ def run_once():
     action = "ROLLBACK ✅" if success else "ROLLBACK FAILED ❌"
     full_report = REPORTER.generate_incident_report(metrics, action)
     update_gist({
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "metrics": metrics,
         "status": "ROLLBACK",
         "analysis": full_report or analysis,
