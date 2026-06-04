@@ -95,6 +95,7 @@ def run_once():
                 update_gist({
                     "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     "metrics": new_metrics,
+                    "incident_metrics": metrics,  
                     "status": "AUTO_REPAIRED",
                     "analysis": full_report or analysis,
                     "report":   full_report or analysis,
@@ -114,6 +115,7 @@ def run_once():
     update_gist({
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "metrics": metrics,
+        "incident_metrics": metrics,  
         "status": "ROLLBACK",
         "analysis": full_report or analysis,
         "report":   full_report or analysis,
